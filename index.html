@@ -25,19 +25,8 @@
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
   <!-- Styles -->
   <link rel="stylesheet" href="./src/styles.css" />
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" media="print" onload="this.media='all'" />
-  <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" /></noscript>
-  <!-- Scripts (defer: non-blocking, preserves order) -->
-  <script defer src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-  <script defer src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
-  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
-  <script defer src="https://cdn.jsdelivr.net/npm/html-docx-js@0.3.1/dist/html-docx.js"></script>
-  <script defer src="./src/docx-parser.js"></script>
 </head>
 <body>
-  <!-- Skip to content link for keyboard users -->
-  <a href="#editor" class="skip-link">跳转到编辑器</a>
-
   <!-- Navbar -->
   <nav id="navbar" class="navbar" aria-label="主导航">
     <div class="nav-inner">
@@ -54,6 +43,14 @@
         <span style="font-size:13px;color:var(--text-secondary);margin-left:10px;font-weight:400;opacity:0.75;">一键转换 Markdown/Word 为公众号排版或另存为 Word/PDF 文档</span>
       </a>
       <div class="nav-actions">
+        <a href="./lite/" class="nav-btn" aria-label="Lite 精简版" style="text-decoration:none;font-size:13px;font-weight:500;width:auto;padding:0 12px;color:#10b981;">
+          <svg aria-hidden="true" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+           &ensp;Lite
+        </a>
+        <a href="./pro/" class="nav-btn" aria-label="Pro 完整版" style="text-decoration:none;font-size:13px;font-weight:600;width:auto;padding:0 12px;background:linear-gradient(135deg,#6366f1,#8b5cf6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">
+          <svg aria-hidden="true" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#6366f1" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+           &ensp;Pro
+        </a>
         <a href="#features" class="nav-btn" aria-label="特性介绍" style="text-decoration:none;font-size:13px;font-weight:500;width:auto;padding:0 12px;">
           <svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
            &ensp;特性
@@ -74,113 +71,6 @@
     </div>
   </nav>
 
-  <!-- Editor Section -->
-  <section id="editor" class="editor-section">
-    <div class="container">
-      <div class="section-header">
-        <div class="section-badge">编辑器</div>
-        <h2 class="section-title">开始转换你的 Markdown 或 Word 文档</h2>
-      </div>
-
-      <div class="editor-grid">
-        <!-- Input Panel -->
-        <div class="editor-panel">
-          <div class="panel-header">
-            <div class="panel-dot red"></div>
-            <div class="panel-dot yellow"></div>
-            <div class="panel-dot green"></div>
-            <span class="panel-title">Markdown 输入</span>
-          </div>
-          <div class="panel-toolbar">
-            <label class="file-upload-btn">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-              <span class="btn-label">导入 MD</span>
-              <input type="file" id="fileInput" accept=".md,.markdown,.txt,text/markdown,text/plain" hidden />
-            </label>
-            <label class="file-upload-btn" title="导入 Word 文档（.docx）">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-              <span class="btn-label">导入 Word</span>
-              <input type="file" id="wordFileInput" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden />
-            </label>
-            <button id="sampleBtn" class="toolbar-btn"><span class="btn-label">示例</span></button>
-            <button id="clearBtn" class="toolbar-btn"><span class="btn-label">清空</span></button>
-            <span id="status" class="status-text" aria-live="polite" aria-atomic="true"></span>
-          </div>
-          <textarea id="markdown" placeholder="在这里粘贴 Markdown 文本..."></textarea>
-        </div>
-
-        <!-- Preview Panel -->
-        <div class="editor-panel">
-          <div class="panel-header">
-            <div class="panel-dot red"></div>
-            <div class="panel-dot yellow"></div>
-            <div class="panel-dot green"></div>
-            <span class="panel-title">公众号预览</span>
-          </div>
-          <div class="panel-toolbar">
-            <label class="toolbar-label">模板</label>
-            <select id="themeSelect" class="toolbar-select">
-              <option value="simple">简洁</option>
-              <option value="elegant">雅致</option>
-              <option value="tech">科技</option>
-              <option value="edu">教育</option>
-              <option value="news">新闻</option>
-              <option value="magazine">杂志</option>
-              <option value="amber">琥珀橙</option>
-              <option value="vivid">活力紫</option>
-              <option value="minimal">极简留白</option>
-              <option value="retro">复古专栏</option>
-              <option value="warmred">暖红知识</option>
-              <option value="night">暗夜霓虹</option>
-            </select>
-            <label class="toolbar-label">字号</label>
-            <div class="font-size-ctrl">
-              <button id="fontSizeDown" class="font-size-btn" title="缩小字号">−</button>
-              <span id="fontSizeLabel" class="font-size-label">0</span>
-              <button id="fontSizeUp" class="font-size-btn" title="放大字号">+</button>
-            </div>
-            <label class="toolbar-label">段距</label>
-            <div class="font-size-ctrl">
-              <button id="paraSpacingDown" class="font-size-btn" title="减小段距">−</button>
-              <span id="paraSpacingLabel" class="font-size-label">0</span>
-              <button id="paraSpacingUp" class="font-size-btn" title="增大段距">+</button>
-            </div>
-            <!-- Preview mode toggle -->
-            <div class="preview-mode-toggle">
-              <button id="desktopModeBtn" class="mode-btn active" title="桌面预览">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-              </button>
-              <button id="phoneModeBtn" class="mode-btn" title="手机预览">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
-              </button>
-            </div>
-            <button id="copyBtn" class="copy-btn">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>
-              复制到公众号
-            </button>
-            <button id="saveHtmlBtn" class="toolbar-btn" title="另存为 HTML 文件">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-              存为 HTML
-            </button>
-            <button id="savePdfBtn" class="toolbar-btn" title="通过打印对话框保存为 PDF">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
-              存为 PDF
-            </button>
-            <button id="saveWordBtn" class="toolbar-btn" title="保存为 Word 文档（.docx）">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-              存为 Word
-            </button>
-          </div>
-          <!-- Preview container with phone frame -->
-          <div id="previewContainer" class="preview-container">
-            <div id="preview" class="preview-area"></div>
-          </div>
-          <div class="help-text">提示：若公众号编辑器内容较长，建议分段粘贴，稳定性更好。<a href="./guide.html" style="color:var(--accent);margin-left:8px;text-decoration:none;">查看使用指导 →</a></div>
-        </div>
-      </div>
-    </div>
-  </section>
-
   <!-- Hero Section -->
   <section class="hero-section">
     <div class="grid-pattern"></div>
@@ -195,10 +85,16 @@
       <p class="hero-desc">
         粘贴 Markdown 或导入 Word 文档，自动识别标题编号、合并单元格、数学公式。12 种主题风格任选，字号段距自由调节，一键复制富文本到公众号草稿箱，也可另存为 HTML 或 PDF 及 Word。
       </p>
-      <a href="#editor" class="hero-cta">
-        开始使用
-        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-      </a>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-top:8px;">
+        <a href="./lite/" class="hero-cta" style="background:#10b981;border-color:#10b981;">
+          Lite 精简版
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+        </a>
+        <a href="./pro/" class="hero-cta">
+          Pro 完整版
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+        </a>
+      </div>
     </div>
   </section>
 
@@ -257,6 +153,34 @@
     </div>
   </footer>
 
-  <script defer src="./src/main.js"></script>
+  <!-- Scripts for dark/light mode toggle only -->
+  <script>
+    (function() {
+      const modeToggleBtn = document.getElementById('modeToggleBtn');
+      const sunIcon = document.getElementById('sunIcon');
+      const moonIcon = document.getElementById('moonIcon');
+      const navbar = document.getElementById('navbar');
+      function systemMode() { return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'; }
+      function updateModeUi(mode) {
+        document.body.setAttribute('data-mode', mode);
+        sunIcon.style.display = mode === 'dark' ? 'none' : 'block';
+        moonIcon.style.display = mode === 'dark' ? 'block' : 'none';
+      }
+      function applyMode(mode, persist) {
+        updateModeUi(mode === 'dark' ? 'dark' : 'light');
+        if (persist) localStorage.setItem('ui-mode', mode);
+      }
+      const saved = localStorage.getItem('ui-mode');
+      saved ? applyMode(saved, false) : updateModeUi(systemMode());
+      window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+        if (!localStorage.getItem('ui-mode')) updateModeUi(systemMode());
+      });
+      window.addEventListener('scroll', () => navbar.classList.toggle('scrolled', window.scrollY > 10));
+      modeToggleBtn.addEventListener('click', () => {
+        const cur = document.body.getAttribute('data-mode') || systemMode();
+        applyMode(cur === 'light' ? 'dark' : 'light', true);
+      });
+    })();
+  </script>
 </body>
 </html>

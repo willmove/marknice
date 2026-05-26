@@ -21,11 +21,17 @@ Markdown / Word 转微信公众号排版格式的 Web 应用。
 
 ```text
 marknice/
-├── index.html            # 入口页面
+├── index.html            # 首页（Hero / 特性介绍）
+├── lite/index.html       # Lite 编辑器
+├── pro/index.html        # Pro 编辑器（含 PDF 导入等扩展）
 ├── src/
 │   ├── main.js           # 业务逻辑（转换、模板、复制、Word 导入、HTML/PDF/Word 导出）
+│   ├── pro-extras.js     # Pro 专属扩展（PDF 导入等）
 │   ├── docx-parser.js    # 自定义 DOCX 解析器（编号、合并单元格、公式、图片）
 │   └── styles.css        # 页面样式（含移动端响应式）
+├── server/
+│   └── server.js         # 零依赖 Node 服务（静态文件 + PaddleOCR 代理）
+├── .env.example          # 后端配置模板
 └── README.md
 ```
 
@@ -36,23 +42,40 @@ marknice/
 - [KaTeX](https://katex.org/) — 数学公式渲染
 - [html-docx-js](https://github.com/evidenceprime/html-docx-js) — HTML 转 Word 文档
 
-## 本地预览
+## 本地运行
 
-纯静态项目，用任意 HTTP 服务器打开即可：
+### 方式 A：仅 Lite（纯静态）
 
 ```bash
-# 1. Clone 仓库到本地并进入该目录
 git clone https://github.com/willmove/marknice.git
 cd marknice
-
-# 2.使用 Python 内置HTTP服务器
 python3 -m http.server 8080
-
-# 2. 或使用 Node.js 的HTTP服务器
-npx serve .
+# 或 npx serve .
 ```
 
-然后访问 `http://localhost:8080`。
+访问 `http://localhost:8080/lite/`。
+
+### 方式 B：包含 Pro 的完整版（PDF 导入需要）
+
+Pro 版的"导入 PDF"通过本地 Node 代理调用 PaddleOCR API，规避浏览器 CORS 限制并保护 Token。需要 **Node.js >= 18**。
+
+```bash
+# 1. 复制环境变量模板，填入自己的 PaddleOCR Token
+cp .env.example .env
+# 编辑 .env，填写 PADDLE_OCR_TOKEN=...
+
+# 2. 启动服务（同时托管静态文件和 /api 代理）
+node server/server.js
+```
+
+打开浏览器访问：
+
+- 首页：`http://localhost:8080/`
+- Lite：`http://localhost:8080/lite/`
+- Pro：`http://localhost:8080/pro/`
+
+> Token 仅保存在 `.env`，不会随仓库提交（已在 .gitignore 中忽略）。
+> Pro 的"导入 PDF"按钮需要后端运行，其余功能（Markdown/Word 导入、主题、导出等）静态部署即可使用。
 
 ## 部署
 

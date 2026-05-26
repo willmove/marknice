@@ -4,3 +4,11 @@ Thumbs.db
 
 # 临时文档（不纳入开源）
 article/
+
+# 环境变量与凭证
+.env
+.env.local
+
+# Node.js
+node_modules/
+npm-debug.log*

@@ -3,6 +3,42 @@ const previewEl = document.getElementById('preview');
 const statusEl = document.getElementById('status');
 const fileInput = document.getElementById('fileInput');
 const themeSelect = document.getElementById('themeSelect');
+
+// ===== Public API for extensions (used by pro-extras.js) =====
+window.MarkNice = window.MarkNice || {};
+const __mnHooks = { beforeRender: [], afterRender: [], ready: [] };
+let __mnReady = false;
+Object.assign(window.MarkNice, {
+  tier: window.__APP_TIER__ || 'lite',
+  // Hook: (md:string) => string — transform markdown source before parsing
+  addBeforeRender(fn) { if (typeof fn === 'function') __mnHooks.beforeRender.push(fn); },
+  // Hook: (previewEl:HTMLElement) => void — mutate rendered DOM
+  addAfterRender(fn) { if (typeof fn === 'function') __mnHooks.afterRender.push(fn); },
+  // Hook: () => void — called after main.js finished initial render.
+  // If registered after main.js (typical for pro-extras.js), runs immediately.
+  onReady(fn) {
+    if (typeof fn !== 'function') return;
+    if (__mnReady) { try { fn(); } catch(e) { console.error(e); } }
+    else __mnHooks.ready.push(fn);
+  },
+  // Register a theme dynamically: themes[key] = theme object, append <option>
+  registerTheme(key, label, theme) {
+    if (!key || !theme) return;
+    themes[key] = theme;
+    if (themeSelect && !themeSelect.querySelector(`option[value="${key}"]`)) {
+      const opt = document.createElement('option');
+      opt.value = key;
+      opt.textContent = label || key;
+      themeSelect.appendChild(opt);
+    }
+  },
+  // Direct accessors
+  getMarkdown: () => markdownEl.value,
+  setMarkdown(md) { markdownEl.value = md == null ? '' : String(md); render(); },
+  getPreviewElement: () => previewEl,
+  rerender: () => render(),
+  setStatus(text) { statusEl.textContent = text == null ? '' : String(text); },
+});
 const fontScaleSelect = null; // removed, replaced by +/- buttons
 let fontSizeOffset = 0; // px offset from default, can be negative or positive
 let paraSpacingOffset = 0; // px offset for paragraph/heading margins
@@ -208,10 +244,18 @@ function renderMath(container) {
 }
 
 function render() {
-  const md = markdownEl.value || '';
+  let md = markdownEl.value || '';
+  for (const fn of __mnHooks.beforeRender) {
+    try { const r = fn(md); if (typeof r === 'string') md = r; }
+    catch (e) { console.error('[MarkNice] beforeRender hook error:', e); }
+  }
   const html = sanitizeForWechat(marked.parse(md));
   previewEl.innerHTML = html;
   renderMath(previewEl);
+  for (const fn of __mnHooks.afterRender) {
+    try { fn(previewEl); }
+    catch (e) { console.error('[MarkNice] afterRender hook error:', e); }
+  }
   previewEl.dataset.html = previewEl.innerHTML;
   statusEl.textContent = md.trim()
     ? `已转换（${themeSelect.options[themeSelect.selectedIndex].text}｜字号 ${fontSizeOffset >= 0 ? '+' : ''}${fontSizeOffset}｜段距 ${paraSpacingOffset >= 0 ? '+' : ''}${paraSpacingOffset}）`
@@ -319,6 +363,16 @@ document.getElementById('copyBtn').addEventListener('click', async () => {
     statusEl.textContent = '复制成功，可去公众号编辑器粘贴';
   } catch {
     statusEl.textContent = '复制失败，请手动全选预览区复制';
+  }
+});
+document.getElementById('copyMdBtn').addEventListener('click', async () => {
+  const md = markdownEl.value;
+  if (!md.trim()) return (statusEl.textContent = '请先输入 Markdown 内容');
+  try {
+    await navigator.clipboard.writeText(md);
+    statusEl.textContent = 'Markdown 源码已复制到剪贴板';
+  } catch {
+    statusEl.textContent = '复制失败，请手动选中编辑区复制';
   }
 });
 document.getElementById('sampleBtn').addEventListener('click', () => {
@@ -692,3 +746,9 @@ phoneModeBtn.addEventListener('click', () => {
   phoneModeBtn.classList.add('active');
   desktopModeBtn.classList.remove('active');
 });
+
+// ===== Fire ready hooks (extensions registered via MarkNice.onReady) =====
+__mnReady = true;
+for (const fn of __mnHooks.ready) {
+  try { fn(); } catch (e) { console.error('[MarkNice] ready hook error:', e); }
+}
