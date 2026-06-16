@@ -1,8 +1,9 @@
 /**
- * pro-extras.js — MarkNice Pro 专属扩展点
+ * pro-extras.js — MarkNice 扩展功能（PDF 导入）
  *
- * 仅由 pro/index.html 加载（lite 不加载）。
- * 公共 API 文档见 src/main.js 中 window.MarkNice 命名空间。
+ * 通过 window.MarkNice 命名空间挂载到主编辑器（公共 API 见 src/main.js）。
+ * PDF 导入需要后端 server.js 运行；纯静态部署时按钮仍显示，
+ * 但点击后会得到“服务端未配置”的友好提示。
  *
  * 注意：本文件不再持有任何凭证。PaddleOCR Token 由后端 server.js
  * 从项目根目录的 .env 读取，前端只调用同源 /api 路径，避免 CORS 与 Token 暴露。
@@ -10,8 +11,8 @@
 (function () {
   'use strict';
 
-  if (!window.MarkNice || window.MarkNice.tier !== 'pro') {
-    console.warn('[pro-extras] MarkNice 未就绪或当前不是 Pro 版，跳过加载。');
+  if (!window.MarkNice) {
+    console.warn('[pro-extras] MarkNice 未就绪，跳过 PDF 导入扩展。');
     return;
   }
 

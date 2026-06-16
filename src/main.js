@@ -9,7 +9,6 @@ window.MarkNice = window.MarkNice || {};
 const __mnHooks = { beforeRender: [], afterRender: [], ready: [] };
 let __mnReady = false;
 Object.assign(window.MarkNice, {
-  tier: window.__APP_TIER__ || 'lite',
   // Hook: (md:string) => string — transform markdown source before parsing
   addBeforeRender(fn) { if (typeof fn === 'function') __mnHooks.beforeRender.push(fn); },
   // Hook: (previewEl:HTMLElement) => void — mutate rendered DOM

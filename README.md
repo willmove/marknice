@@ -6,6 +6,7 @@ Markdown / Word 转微信公众号排版格式的 Web 应用。
 
 - 粘贴或上传 Markdown（`.md / .markdown / .txt`），实时预览转换结果
 - 导入 Word 文档（`.docx`），自动识别标题编号、有序/无序列表、合并单元格表格、OMML 数学公式、图片、文本格式
+- 导入 PDF 文档（经本地 Node 代理调用 PaddleOCR，需后端运行）
 - 数学公式通过 KaTeX 渲染为 HTML
 - 12 种公众号排版主题：简洁、雅致、科技、教育、新闻、杂志、琥珀橙、活力紫、极简留白、复古专栏、暖红知识、暗夜霓虹
 - 字号与段距自由调节
@@ -21,12 +22,11 @@ Markdown / Word 转微信公众号排版格式的 Web 应用。
 
 ```text
 marknice/
-├── index.html            # 首页（Hero / 特性介绍）
-├── lite/index.html       # Lite 编辑器
-├── pro/index.html        # Pro 编辑器（含 PDF 导入等扩展）
+├── index.html            # 首页（顶部即编辑器，下方为介绍 / 特性）
+├── guide.html            # 使用指导
 ├── src/
 │   ├── main.js           # 业务逻辑（转换、模板、复制、Word 导入、HTML/PDF/Word 导出）
-│   ├── pro-extras.js     # Pro 专属扩展（PDF 导入等）
+│   ├── pro-extras.js     # 扩展模块（PDF 导入，需后端）
 │   ├── docx-parser.js    # 自定义 DOCX 解析器（编号、合并单元格、公式、图片）
 │   └── styles.css        # 页面样式（含移动端响应式）
 ├── server/
@@ -34,6 +34,8 @@ marknice/
 ├── .env.example          # 后端配置模板
 └── README.md
 ```
+
+> 编辑器已合并为单一入口：直接打开首页 `/` 即可使用全部功能。原 `lite/`、`pro/` 两个版本已不再单独存在。
 
 ## 外部依赖（CDN）
 
@@ -44,7 +46,7 @@ marknice/
 
 ## 本地运行
 
-### 方式 A：仅 Lite（纯静态）
+### 方式 A：纯静态（不含 PDF 导入）
 
 ```bash
 git clone https://github.com/willmove/marknice.git
@@ -53,11 +55,11 @@ python3 -m http.server 8080
 # 或 npx serve .
 ```
 
-访问 `http://localhost:8080/lite/`。
+访问 `http://localhost:8080/`。Markdown/Word 导入、主题、导出等功能均可用；仅"导入 PDF"需要后端。
 
-### 方式 B：包含 Pro 的完整版（PDF 导入需要）
+### 方式 B：完整版（启用 PDF 导入）
 
-Pro 版的"导入 PDF"通过本地 Node 代理调用 PaddleOCR API，规避浏览器 CORS 限制并保护 Token。需要 **Node.js >= 18**。
+"导入 PDF"通过本地 Node 代理调用 PaddleOCR API，规避浏览器 CORS 限制并保护 Token。需要 **Node.js >= 18**。
 
 ```bash
 # 1. 复制环境变量模板，填入自己的 PaddleOCR Token
@@ -68,14 +70,10 @@ cp .env.example .env
 node server/server.js
 ```
 
-打开浏览器访问：
-
-- 首页：`http://localhost:8080/`
-- Lite：`http://localhost:8080/lite/`
-- Pro：`http://localhost:8080/pro/`
+打开浏览器访问 `http://localhost:8080/`。
 
 > Token 仅保存在 `.env`，不会随仓库提交（已在 .gitignore 中忽略）。
-> Pro 的"导入 PDF"按钮需要后端运行，其余功能（Markdown/Word 导入、主题、导出等）静态部署即可使用。
+> "导入 PDF"按钮需要后端运行，其余功能静态部署即可使用。
 
 ## 部署
 
