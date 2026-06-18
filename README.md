@@ -51,8 +51,8 @@ marknice/
 ```bash
 git clone https://github.com/willmove/marknice.git
 cd marknice
-python3 -m http.server 8080
-# 或 npx serve .
+python -m http.server 8080
+# 或 python3 -m http.server 8080，或 npx serve .
 ```
 
 访问 `http://localhost:8080/`。Markdown/Word 导入、主题、导出等功能均可用；仅"导入 PDF"需要后端。
@@ -97,5 +97,3 @@ sudo rsync -av --delete /path/to/marknice/ /var/www/marknice/
 **关注公众号**，分享更多 AI 产品实践技巧：
 
 ![alt text](qr_code.jpg)
-
-
