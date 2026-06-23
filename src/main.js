@@ -2,6 +2,7 @@ const markdownEl = document.getElementById('markdown');
 const previewEl = document.getElementById('preview');
 const statusEl = document.getElementById('status');
 const fileInput = document.getElementById('fileInput');
+const imageFileInput = document.getElementById('imageFileInput');
 const themeSelect = document.getElementById('themeSelect');
 
 // ===== Public API for extensions (used by pro-extras.js) =====
@@ -76,6 +77,141 @@ marked.use({
       }
     }
   ]
+});
+
+const localImageSources = new Map();
+let lastLocalImageStats = { resolved: 0, missing: [], records: [] };
+const localImageExtPattern = /\.(avif|bmp|gif|jpe?g|png|svg|webp)(?:[?#].*)?$/i;
+const localImageMimePattern = /^image\//i;
+
+function cleanLocalImagePath(src) {
+  let value = String(src || '').trim();
+  if (!value) return '';
+  try { value = decodeURI(value); } catch (e) {}
+  value = value.replace(/[?#].*$/, '');
+  value = value.replace(/^file:\/+/i, '');
+  value = value.replace(/\\/g, '/');
+  value = value.replace(/^\/+([A-Za-z]:\/)/, '$1');
+  value = value.replace(/^(\.\/)+/, '');
+  return value.replace(/\/{2,}/g, '/');
+}
+
+function normalizeLocalImageKey(src) {
+  return cleanLocalImagePath(src).toLowerCase();
+}
+
+function localImageBasename(path) {
+  const cleaned = cleanLocalImagePath(path);
+  const parts = cleaned.split('/');
+  return parts[parts.length - 1] || '';
+}
+
+function imageSrcIsLocalCandidate(src) {
+  const value = String(src || '').trim();
+  if (!value) return false;
+  if (/^(https?:|data:|blob:|about:|chrome:|edge:|javascript:)/i.test(value) || /^\/\//.test(value)) return false;
+  return localImageExtPattern.test(cleanLocalImagePath(value));
+}
+
+function localImageLookupKeys(src) {
+  const cleaned = cleanLocalImagePath(src);
+  const keys = [];
+  const addKey = (value) => {
+    const key = normalizeLocalImageKey(value);
+    if (key && !keys.includes(key)) keys.push(key);
+  };
+
+  addKey(cleaned);
+  addKey(cleaned.replace(/^\/+/, ''));
+  addKey(cleaned.replace(/^[A-Za-z]:\//, ''));
+  addKey(localImageBasename(cleaned));
+  return keys;
+}
+
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ''));
+    reader.onerror = () => reject(reader.error || new Error('Image read failed'));
+    reader.readAsDataURL(file);
+  });
+}
+
+function isSupportedImageFile(file) {
+  return !!file && (localImageMimePattern.test(file.type || '') || localImageExtPattern.test(file.name || ''));
+}
+
+function registerLocalImageData(file, dataUrl) {
+  const paths = [file.webkitRelativePath, file.name].filter(Boolean);
+  const record = {
+    id: 'local-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2),
+    dataUrl,
+    file,
+    name: file.name,
+    uploadUrl: '',
+  };
+  paths.forEach(path => {
+    localImageLookupKeys(path).forEach(key => localImageSources.set(key, record));
+  });
+}
+
+async function importLocalImageFiles(files) {
+  let imported = 0;
+  let skipped = 0;
+  for (const file of Array.from(files || [])) {
+    if (!isSupportedImageFile(file)) {
+      skipped++;
+      continue;
+    }
+    const dataUrl = await readFileAsDataUrl(file);
+    registerLocalImageData(file, dataUrl);
+    imported++;
+  }
+  return { imported, skipped };
+}
+
+function resolveLocalImageData(src) {
+  if (!imageSrcIsLocalCandidate(src)) return null;
+  for (const key of localImageLookupKeys(src)) {
+    const record = localImageSources.get(key);
+    if (record) return record;
+  }
+  return null;
+}
+
+function applyLocalImages(root) {
+  const missing = new Set();
+  const records = new Map();
+  let resolved = 0;
+  root.querySelectorAll('img').forEach(img => {
+    const src = img.getAttribute('src') || '';
+    const record = resolveLocalImageData(src);
+    if (record) {
+      img.setAttribute('src', record.dataUrl);
+      img.setAttribute('data-mn-local-image-id', record.id);
+      records.set(record.id, record);
+      resolved++;
+      return;
+    }
+    if (imageSrcIsLocalCandidate(src)) missing.add(src);
+  });
+  lastLocalImageStats = { resolved, missing: Array.from(missing), records: Array.from(records.values()) };
+}
+
+function localImageStatusSuffix() {
+  const missingCount = lastLocalImageStats.missing.length;
+  if (missingCount) return `｜本地图片未导入 ${missingCount} 张`;
+  if (lastLocalImageStats.resolved) return `｜本地预览图 ${lastLocalImageStats.resolved} 张`;
+  return '';
+}
+
+Object.assign(window.MarkNice, {
+  registerLocalImages: importLocalImageFiles,
+  clearLocalImages() {
+    localImageSources.clear();
+    lastLocalImageStats = { resolved: 0, missing: [], records: [] };
+    render();
+  },
 });
 
 function tokenHeadingOptions(tagName) {
@@ -189,12 +325,22 @@ const themes = {
     pageBg: 'linear-gradient(rgba(18,63,52,0.045) 1px,transparent 1px),linear-gradient(90deg,rgba(18,63,52,0.045) 1px,transparent 1px),#f4faf7',
     pageBgSize: '48px 48px,48px 48px,auto',
   }),
-  news: { section: 'font-family:Georgia,"PingFang SC","Microsoft YaHei",serif;word-break:break-word;color:#1f1f1f;', styles: {
+  newspaper: { section: 'font-family:Georgia,"PingFang SC","Microsoft YaHei",serif;word-break:break-word;color:#1f1f1f;', styles: {
     h1:'font-size:28px;line-height:1.45;font-weight:700;margin:36px 0 22px;color:#111;',h2:'font-size:22px;line-height:1.5;font-weight:700;margin:32px 0 20px;color:#1b1b1b;',h3:'font-size:18px;line-height:1.55;font-weight:700;margin:28px 0 10px;color:#2b2b2b;',h4:'font-size:16px;line-height:1.55;font-weight:700;margin:16px 0 10px;color:#2b2b2b;',p:'font-size:15px;line-height:2;margin:10px 0;color:#1f1f1f;text-align:justify;',blockquote:'margin:14px 0;padding:10px 14px;border-left:4px solid #999;background:#f8f8f8;color:#444;font-size:13px;line-height:1.85;',ul:'margin:10px 0;padding-left:24px;line-height:1.9;color:#1f1f1f;font-size:15px;',ol:'margin:10px 0;padding-left:24px;line-height:1.9;color:#1f1f1f;font-size:15px;',li:'margin:6px 0;',a:'color:#1155cc;text-decoration:underline;',img:'max-width:100%;display:block;margin:18px auto;',pre:'background:#f5f5f5;border:1px solid #e3e3e3;border-radius:4px;padding:12px;overflow:auto;line-height:1.6;font-size:12px;',code:'background:#f0f0f0;padding:2px 5px;border-radius:3px;font-size:90%;font-family:Menlo,Consolas,monospace;',table:'border-collapse:collapse;width:100%;margin:12px 0;font-size:12px;',th:'border:1px solid #ddd;padding:8px;background:#f7f7f7;text-align:left;',td:'border:1px solid #ddd;padding:8px;',hr:'border:none;border-top:1px solid #ddd;margin:24px 0;'
   }},
-  magazine: { section: 'font-family:"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;word-break:break-word;color:#27272a;', styles: {
-    h1:'font-size:30px;line-height:1.5;font-weight:800;margin:24px 0 14px;color:#7a1f1f;text-align:center;',h2:'font-size:22px;line-height:1.6;font-weight:700;margin:20px 0 12px;color:#992d2d;',h3:'font-size:18px;line-height:1.6;font-weight:700;margin:16px 0 10px;color:#ad3a3a;',h4:'font-size:16px;line-height:1.6;font-weight:700;margin:14px 0 10px;color:#ad3a3a;',p:'font-size:15px;line-height:1.95;margin:12px 0;color:#2f2f33;text-align:justify;letter-spacing:.2px;',blockquote:'margin:16px 0;padding:12px 16px;border-left:0;background:#fff3f2;color:#8a2c2c;font-size:14px;line-height:1.9;border-radius:10px;',ul:'margin:10px 0;padding-left:24px;line-height:1.9;color:#2f2f33;font-size:15px;',ol:'margin:10px 0;padding-left:24px;line-height:1.9;color:#2f2f33;font-size:15px;',li:'margin:6px 0;',a:'color:#c23a3a;text-decoration:none;border-bottom:1px dashed #d67f7f;',img:'max-width:100%;display:block;margin:20px auto;border-radius:12px;box-shadow:0 8px 20px rgba(120,30,30,.12);',pre:'background:#fff6f6;border:1px solid #f2d9d9;border-radius:10px;padding:12px;overflow:auto;line-height:1.7;font-size:12px;',code:'background:#ffeef0;padding:2px 6px;border-radius:4px;font-size:90%;font-family:Menlo,Consolas,monospace;color:#9c2f3a;',table:'border-collapse:collapse;width:100%;margin:12px 0;font-size:12px;',th:'border:1px solid #f0d1d1;padding:8px;background:#fff7f7;text-align:left;',td:'border:1px solid #f0d1d1;padding:8px;',hr:'border:none;border-top:1px dashed #e8c2c2;margin:24px 0;'
-  }},
+  magazine: makeTokenTheme({
+    bodyFont: '"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif',
+    text: '#2f2f33',
+    heading: '#7a1f1f',
+    accent: '#c23a3a',
+    strong: '#992d2d',
+    quoteBg: '#fff3f2',
+    quoteBorder: '#c23a3a',
+    codeBg: '#ffeef0',
+    codeText: '#9c2f3a',
+    hr: '#e8c2c2',
+    markBg: '#ffe0de',
+  }),
   ocean: makeTokenTheme({
     bodyFont: '-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif',
     text: '#1f3a3d',
@@ -282,6 +428,49 @@ function applyInlineStyles(container, styleMap, offset = 0) {
   });
 }
 
+function detectHeadingNumberPrefix(text) {
+  const patterns = [
+    /^\s*[（(]\s*([0-9]{1,2}|[一二三四五六七八九十百]+)\s*[)）][、.．:：]?\s*/,
+    /^\s*([0-9]{1,2}|[一二三四五六七八九十百]+)\s*[、.．:：]\s*/,
+    /^\s*([0-9]{1,2})\s+/
+  ];
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    if (match) return { value: match[1], length: match[0].length };
+  }
+  return null;
+}
+
+function stripTextPrefix(node, count) {
+  if (!count) return 0;
+  Array.from(node.childNodes).forEach(child => {
+    if (!count) return;
+    if (child.nodeType === 3) {
+      const text = child.nodeValue || '';
+      if (text.length <= count) {
+        count -= text.length;
+        child.nodeValue = '';
+      } else {
+        child.nodeValue = text.slice(count);
+        count = 0;
+      }
+    } else if (child.nodeType === 1) {
+      count = stripTextPrefix(child, count);
+    }
+  });
+  return count;
+}
+
+function createWarmredCircle(label, block) {
+  const outerStyle = block
+    ? 'display:block;text-align:center;margin-bottom:8px;'
+    : 'display:inline-block;vertical-align:middle;margin-right:10px;';
+  const circleStyle = block
+    ? "display:inline-block;box-sizing:border-box;width:52px;height:52px;line-height:48px;border:2px solid #c0392b;border-radius:50%;background:transparent;color:#c0392b;font-size:24px;font-weight:900;text-align:center;font-family:'DIN Alternate','Impact','Arial Black',sans-serif;letter-spacing:1px;"
+    : "display:inline-block;box-sizing:border-box;min-width:40px;height:40px;line-height:36px;padding:0 8px;border:2px solid #c0392b;border-radius:999px;background:transparent;color:#c0392b;font-size:16px;font-weight:900;text-align:center;font-family:'DIN Alternate','Impact','Arial Black',sans-serif;letter-spacing:0;";
+  return `<span style="${outerStyle}"><span style="${circleStyle}">${label}</span></span>`;
+}
+
 function sanitizeForWechat(html) {
   const theme = themes[themeSelect.value] || themes.simple;
   const offset = fontSizeOffset;
@@ -299,6 +488,7 @@ function sanitizeForWechat(html) {
       }
     });
   });
+  applyLocalImages(root);
   applyInlineStyles(root, theme.styles, offset);
   // Reset code styles inside pre blocks to avoid extra indentation
   root.querySelectorAll('pre code').forEach(el => {
@@ -332,18 +522,34 @@ function sanitizeForWechat(html) {
       });
     });
   }
-  // For warmred theme: add numbered circle before h2, center h2 wrapper
+  // For warmred theme: add or reuse chapter numbers with a hollow circle.
+  // Use h1 for sections, except when the only h1 is the article title at the start.
   if (themeSelect.value === 'warmred') {
-    let h2Counter = 0;
-    root.querySelectorAll('h2').forEach(el => {
-      h2Counter++;
-      const num = String(h2Counter).padStart(2, '0');
-      const marker = `<span style="display:block;text-align:center;margin-bottom:8px;"><span style="display:inline-block;width:52px;height:52px;line-height:52px;border-radius:50%;background:#c0392b;color:#fff;font-size:24px;font-weight:900;text-align:center;font-family:'DIN Alternate','Impact','Arial Black',sans-serif;letter-spacing:1px;">${num}</span></span>`;
+    let headingCounter = 0;
+    const h1List = Array.from(root.querySelectorAll('h1'));
+    const hasOnlyOpeningTitle = h1List.length === 1 && h1List[0] === root.firstElementChild;
+    const headingTag = h1List.length && !hasOnlyOpeningTitle ? 'h1' : 'h2';
+    const baseTopMargin = headingTag === 'h1' ? 36 : 32;
+    const baseBottomMargin = headingTag === 'h1' ? 18 : 16;
+    const headingTopMargin = Math.max((baseTopMargin + paraSpacingOffset) * 2, 0);
+    const headingBottomMargin = Math.max((baseBottomMargin + paraSpacingOffset) / 2, 0);
+    root.querySelectorAll(headingTag).forEach(el => {
+      const numbered = detectHeadingNumberPrefix(el.textContent || '');
       const wrapper = doc.createElement('div');
-      wrapper.setAttribute('style', 'text-align:center;margin:0;padding:0;');
+      wrapper.setAttribute('style', `text-align:center;margin:${headingTopMargin}px 0 ${headingBottomMargin}px;padding:0;`);
       el.parentNode.insertBefore(wrapper, el);
       wrapper.appendChild(el);
-      wrapper.insertAdjacentHTML('afterbegin', marker);
+      const headingStyle = (el.getAttribute('style') || '').replace(/margin:[^;]+;?/g, '');
+      el.setAttribute('style', `${headingStyle};margin:0;`);
+      if (numbered) {
+        const numericValue = /^[0-9]+$/.test(numbered.value) ? Number(numbered.value) : null;
+        headingCounter = numericValue || headingCounter + 1;
+        stripTextPrefix(el, numbered.length);
+        el.insertAdjacentHTML('afterbegin', createWarmredCircle(numbered.value, false));
+      } else {
+        headingCounter++;
+        wrapper.insertAdjacentHTML('afterbegin', createWarmredCircle(String(headingCounter).padStart(2, '0'), true));
+      }
     });
   }
   if (theme.headingVariant === 'ribbon') {
@@ -395,7 +601,7 @@ function render() {
   }
   previewEl.dataset.html = previewEl.innerHTML;
   statusEl.textContent = md.trim()
-    ? `已转换（${themeSelect.options[themeSelect.selectedIndex].text}｜字号 ${fontSizeOffset >= 0 ? '+' : ''}${fontSizeOffset}｜段距 ${paraSpacingOffset >= 0 ? '+' : ''}${paraSpacingOffset}）`
+    ? `已转换（${themeSelect.options[themeSelect.selectedIndex].text}｜字号 ${fontSizeOffset >= 0 ? '+' : ''}${fontSizeOffset}｜段距 ${paraSpacingOffset >= 0 ? '+' : ''}${paraSpacingOffset}${localImageStatusSuffix()}）`
     : '';
 }
 
@@ -406,13 +612,21 @@ async function copyRichHtml(html) {
     await navigator.clipboard.write([new ClipboardItem({ 'text/html': blobHtml, 'text/plain': blobText })]);
     return;
   }
-  const range = document.createRange();
-  range.selectNodeContents(previewEl);
-  const sel = window.getSelection();
-  sel.removeAllRanges();
-  sel.addRange(range);
-  document.execCommand('copy');
-  sel.removeAllRanges();
+  const holder = document.createElement('div');
+  holder.style.cssText = 'position:fixed;left:-99999px;top:0;width:1px;height:1px;overflow:hidden;';
+  holder.innerHTML = html;
+  document.body.appendChild(holder);
+  try {
+    const range = document.createRange();
+    range.selectNodeContents(holder);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    document.execCommand('copy');
+    sel.removeAllRanges();
+  } finally {
+    holder.remove();
+  }
 }
 
 function systemMode() {
@@ -492,14 +706,365 @@ markdownEl.addEventListener('input', () => {
   clearTimeout(window.__renderTimer);
   window.__renderTimer = setTimeout(render, 250);
 });
+
+const markdownFormatToolbar = document.querySelector('.markdown-format-toolbar');
+let lastMarkdownSelection = { start: 0, end: 0 };
+
+function rememberMarkdownSelection() {
+  lastMarkdownSelection = {
+    start: markdownEl.selectionStart || 0,
+    end: markdownEl.selectionEnd || 0
+  };
+}
+
+function getMarkdownSelection() {
+  if (document.activeElement === markdownEl) rememberMarkdownSelection();
+  const length = markdownEl.value.length;
+  const start = Math.min(lastMarkdownSelection.start, length);
+  const end = Math.min(lastMarkdownSelection.end, length);
+  return {
+    start: Math.min(start, end),
+    end: Math.max(start, end)
+  };
+}
+
+function updateMarkdownValue(value, selectionStart, selectionEnd, message) {
+  markdownEl.value = value;
+  markdownEl.focus();
+  markdownEl.setSelectionRange(selectionStart, selectionEnd);
+  rememberMarkdownSelection();
+  render();
+  if (message) statusEl.textContent = message;
+}
+
+function wrapMarkdownSelection(before, after, placeholder, message) {
+  const value = markdownEl.value;
+  const selection = getMarkdownSelection();
+  const start = selection.start;
+  const end = selection.end;
+  const selected = value.slice(start, end);
+  const hasWrappedSelection = selected &&
+    selected.startsWith(before) &&
+    selected.endsWith(after) &&
+    selected.length >= before.length + after.length;
+  const hasOuterMarkers = start >= before.length &&
+    value.slice(start - before.length, start) === before &&
+    value.slice(end, end + after.length) === after;
+
+  if (hasWrappedSelection) {
+    const inner = selected.slice(before.length, selected.length - after.length);
+    const next = value.slice(0, start) + inner + value.slice(end);
+    updateMarkdownValue(next, start, start + inner.length, message);
+    return;
+  }
+
+  if (hasOuterMarkers) {
+    const next = value.slice(0, start - before.length) + selected + value.slice(end + after.length);
+    const nextStart = start - before.length;
+    updateMarkdownValue(next, nextStart, nextStart + selected.length, message);
+    return;
+  }
+
+  const text = selected || placeholder;
+  const next = value.slice(0, start) + before + text + after + value.slice(end);
+  const innerStart = start + before.length;
+  updateMarkdownValue(next, innerStart, innerStart + text.length, message);
+}
+
+function selectedLineRange() {
+  const value = markdownEl.value;
+  const selection = getMarkdownSelection();
+  const start = selection.start;
+  const end = selection.end;
+  const lineStart = value.lastIndexOf('\n', Math.max(0, start - 1)) + 1;
+  const endAnchor = end > start && value.charAt(end - 1) === '\n' ? end - 1 : end;
+  let lineEnd = value.indexOf('\n', endAnchor);
+  if (lineEnd === -1) lineEnd = value.length;
+  return { value, start, end, lineStart, lineEnd };
+}
+
+function toggleSimpleLinePrefix(prefix, placeholder, message) {
+  const range = selectedLineRange();
+  const segment = range.value.slice(range.lineStart, range.lineEnd);
+
+  if (!segment.trim()) {
+    const inserted = prefix + placeholder;
+    const next = range.value.slice(0, range.lineStart) + inserted + range.value.slice(range.lineEnd);
+    updateMarkdownValue(next, range.lineStart + prefix.length, range.lineStart + inserted.length, message);
+    return;
+  }
+
+  const lines = segment.split('\n');
+  const nonEmptyLines = lines.filter(line => line.trim());
+  const shouldRemove = nonEmptyLines.length > 0 && nonEmptyLines.every(line => line.startsWith(prefix));
+  const nextSegment = lines.map(line => {
+    if (!line.trim()) return line;
+    return shouldRemove ? line.slice(prefix.length) : prefix + line;
+  }).join('\n');
+  const next = range.value.slice(0, range.lineStart) + nextSegment + range.value.slice(range.lineEnd);
+  updateMarkdownValue(next, range.lineStart, range.lineStart + nextSegment.length, message);
+}
+
+function toggleHeading(level) {
+  const range = selectedLineRange();
+  const segment = range.value.slice(range.lineStart, range.lineEnd);
+  const safeLevel = Math.min(Math.max(Number(level) || 1, 1), 6);
+  const prefix = '#'.repeat(safeLevel) + ' ';
+
+  if (!segment.trim()) {
+    const inserted = prefix + '标题';
+    const next = range.value.slice(0, range.lineStart) + inserted + range.value.slice(range.lineEnd);
+    updateMarkdownValue(next, range.lineStart + prefix.length, range.lineStart + inserted.length, `已插入 H${safeLevel} 标题`);
+    return;
+  }
+
+  const lines = segment.split('\n');
+  const nonEmptyLines = lines.filter(line => line.trim());
+  const headingPattern = new RegExp('^#{' + safeLevel + '}\\s+');
+  const shouldRemove = nonEmptyLines.length > 0 && nonEmptyLines.every(line => headingPattern.test(line));
+  const nextSegment = lines.map(line => {
+    if (!line.trim()) return line;
+    return shouldRemove ? line.replace(/^#{1,6}\s+/, '') : line.replace(/^(#{1,6}\s+)?/, prefix);
+  }).join('\n');
+  const next = range.value.slice(0, range.lineStart) + nextSegment + range.value.slice(range.lineEnd);
+  updateMarkdownValue(next, range.lineStart, range.lineStart + nextSegment.length, `已切换 H${safeLevel} 标题`);
+}
+
+function toggleOrderedList() {
+  const range = selectedLineRange();
+  const segment = range.value.slice(range.lineStart, range.lineEnd);
+
+  if (!segment.trim()) {
+    const inserted = '1. 列表项';
+    const next = range.value.slice(0, range.lineStart) + inserted + range.value.slice(range.lineEnd);
+    updateMarkdownValue(next, range.lineStart + 3, range.lineStart + inserted.length, '已插入有序列表');
+    return;
+  }
+
+  const lines = segment.split('\n');
+  const nonEmptyLines = lines.filter(line => line.trim());
+  const shouldRemove = nonEmptyLines.length > 0 && nonEmptyLines.every(line => /^\d+\.\s+/.test(line));
+  let index = 1;
+  const nextSegment = lines.map(line => {
+    if (!line.trim()) return line;
+    if (shouldRemove) return line.replace(/^\d+\.\s+/, '');
+    return (index++) + '. ' + line.replace(/^\d+\.\s+/, '');
+  }).join('\n');
+  const next = range.value.slice(0, range.lineStart) + nextSegment + range.value.slice(range.lineEnd);
+  updateMarkdownValue(next, range.lineStart, range.lineStart + nextSegment.length, '已切换有序列表');
+}
+
+function insertCodeMarkdown() {
+  const value = markdownEl.value;
+  const selection = getMarkdownSelection();
+  const start = selection.start;
+  const end = selection.end;
+  const selected = value.slice(start, end);
+
+  wrapMarkdownSelection('`', '`', '代码', '已插入代码标记');
+}
+
+function insertCodeBlock() {
+  const value = markdownEl.value;
+  const selection = getMarkdownSelection();
+  const start = selection.start;
+  const end = selection.end;
+  const selected = value.slice(start, end) || '代码内容';
+  const before = start === 0 ? '' : (value.charAt(start - 1) === '\n' ? '\n' : '\n\n');
+  const after = value.charAt(end) === '\n' ? '\n' : '\n\n';
+  const inserted = before + '```js\n' + selected + '\n```' + after;
+  const codeStart = start + before.length + 6;
+  const next = value.slice(0, start) + inserted + value.slice(end);
+  updateMarkdownValue(next, codeStart, codeStart + selected.length, '已插入代码块');
+}
+
+function insertMarkdownLink() {
+  const value = markdownEl.value;
+  const selection = getMarkdownSelection();
+  const start = selection.start;
+  const end = selection.end;
+  const selected = value.slice(start, end) || '链接文字';
+  const url = 'https://example.com';
+  const inserted = '[' + selected + '](' + url + ')';
+  const next = value.slice(0, start) + inserted + value.slice(end);
+  const selectionStart = start + 1;
+  updateMarkdownValue(next, selectionStart, selectionStart + selected.length, '已插入链接');
+}
+
+function insertMarkdownImage() {
+  const value = markdownEl.value;
+  const selection = getMarkdownSelection();
+  const start = selection.start;
+  const end = selection.end;
+  const selected = value.slice(start, end) || '图片描述';
+  const url = '图片地址';
+  const inserted = '![' + selected + '](' + url + ')';
+  const next = value.slice(0, start) + inserted + value.slice(end);
+  const selectionStart = start + 2;
+  updateMarkdownValue(next, selectionStart, selectionStart + selected.length, '已插入图片语法');
+}
+
+function insertMarkdownTable() {
+  const value = markdownEl.value;
+  const selection = getMarkdownSelection();
+  const start = selection.start;
+  const end = selection.end;
+  const before = start === 0 ? '' : (value.charAt(start - 1) === '\n' ? '\n' : '\n\n');
+  const after = value.charAt(end) === '\n' ? '\n' : '\n\n';
+  const table = '| 标题一 | 标题二 | 标题三 |\n| --- | --- | --- |\n| 内容 | 内容 | 内容 |';
+  const inserted = before + table + after;
+  const next = value.slice(0, start) + inserted + value.slice(end);
+  const cellStart = start + before.length + 2;
+  updateMarkdownValue(next, cellStart, cellStart + 3, '已插入表格');
+}
+
+function insertHorizontalRule() {
+  const value = markdownEl.value;
+  const selection = getMarkdownSelection();
+  const start = selection.start;
+  const end = selection.end;
+  const before = start === 0 ? '' : (value.charAt(start - 1) === '\n' ? '\n' : '\n\n');
+  const after = value.charAt(end) === '\n' ? '\n' : '\n\n';
+  const inserted = before + '---' + after;
+  const next = value.slice(0, start) + inserted + value.slice(end);
+  const nextCursor = start + inserted.length;
+  updateMarkdownValue(next, nextCursor, nextCursor, '已插入分割线');
+}
+
+function runMarkdownAction(action) {
+  if (action === 'bold') wrapMarkdownSelection('**', '**', '加粗文字', '已插入粗体标记');
+  else if (action === 'italic') wrapMarkdownSelection('*', '*', '斜体文字', '已插入斜体标记');
+  else if (action === 'underline') wrapMarkdownSelection('<u>', '</u>', '下划线文字', '已插入下划线标记');
+  else if (action === 'heading1') toggleHeading(1);
+  else if (action === 'heading2') toggleHeading(2);
+  else if (action === 'heading3') toggleHeading(3);
+  else if (action === 'quote') toggleSimpleLinePrefix('> ', '引用内容', '已切换引用');
+  else if (action === 'unorderedList') toggleSimpleLinePrefix('- ', '列表项', '已切换无序列表');
+  else if (action === 'orderedList') toggleOrderedList();
+  else if (action === 'code') insertCodeMarkdown();
+  else if (action === 'codeBlock') insertCodeBlock();
+  else if (action === 'link') insertMarkdownLink();
+  else if (action === 'image') insertMarkdownImage();
+  else if (action === 'imageUpload') imageFileInput?.click();
+  else if (action === 'table') insertMarkdownTable();
+  else if (action === 'hr') insertHorizontalRule();
+}
+
+markdownFormatToolbar?.addEventListener('click', (e) => {
+  const button = e.target.closest('[data-md-action]');
+  if (!button) return;
+  e.preventDefault();
+  runMarkdownAction(button.dataset.mdAction);
+});
+
+markdownFormatToolbar?.addEventListener('mousedown', (e) => {
+  if (e.target.closest('[data-md-action]')) e.preventDefault();
+});
+
+['focus', 'input', 'keyup', 'mouseup', 'select'].forEach(eventName => {
+  markdownEl.addEventListener(eventName, rememberMarkdownSelection);
+});
+
+markdownEl.addEventListener('keydown', (e) => {
+  if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
+  const key = e.key.toLowerCase();
+  if (key === 'b') {
+    e.preventDefault();
+    runMarkdownAction('bold');
+  } else if (key === 'i') {
+    e.preventDefault();
+    runMarkdownAction('italic');
+  } else if (key === 'u') {
+    e.preventDefault();
+    runMarkdownAction('underline');
+  } else if (key === 'k') {
+    e.preventDefault();
+    runMarkdownAction('link');
+  }
+});
+
+function localImageRecordsForCurrentPreview() {
+  const ids = new Set();
+  previewEl.querySelectorAll('img[data-mn-local-image-id]').forEach(img => {
+    const id = img.getAttribute('data-mn-local-image-id');
+    if (id) ids.add(id);
+  });
+  return (lastLocalImageStats.records || []).filter(record => ids.has(record.id));
+}
+
+async function uploadLocalImagesForCopy(records) {
+  const pending = records.filter(record => !record.uploadUrl);
+  if (!pending.length) return;
+
+  const response = await fetch('/api/oss/temp-images', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      images: pending.map(record => ({
+        id: record.id,
+        name: record.name,
+        type: record.file?.type || '',
+        dataUrl: record.dataUrl,
+      })),
+    }),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || '临时图片上传失败');
+
+  const urlsById = new Map((data.images || []).map(item => [item.id, item.url]));
+  pending.forEach(record => {
+    const url = urlsById.get(record.id);
+    if (url) record.uploadUrl = url;
+  });
+  if (pending.some(record => !record.uploadUrl)) throw new Error('部分临时图片未返回 OSS URL');
+}
+
+function htmlWithUploadedLocalImages(html) {
+  const doc = new DOMParser().parseFromString(`<section>${html}</section>`, 'text/html');
+  const root = doc.body.firstElementChild;
+  const recordsById = new Map((lastLocalImageStats.records || []).map(record => [record.id, record]));
+  root.querySelectorAll('img[data-mn-local-image-id]').forEach(img => {
+    const record = recordsById.get(img.getAttribute('data-mn-local-image-id'));
+    img.removeAttribute('data-mn-local-image-id');
+    if (record?.uploadUrl) img.setAttribute('src', record.uploadUrl);
+  });
+  return root.outerHTML;
+}
+
+async function htmlReadyForWechatCopy(html) {
+  const records = localImageRecordsForCurrentPreview();
+  if (!records.length) return html;
+
+  const ok = window.confirm(
+    `检测到 ${records.length} 张本地图片。\n\n点击“确定”后，图片会临时上传到 MarkNice 的 OSS 中转区，再复制可粘贴到公众号的内容。\n图片会按服务端生命周期规则自动删除。\n\n点击“取消”则不复制，请手动处理图片。`
+  );
+  if (!ok) {
+    statusEl.textContent = '已取消复制，本地图片未上传';
+    return null;
+  }
+
+  statusEl.textContent = `正在临时上传 ${records.length} 张图片...`;
+  await uploadLocalImagesForCopy(records);
+  return htmlWithUploadedLocalImages(html);
+}
+
 document.getElementById('copyBtn').addEventListener('click', async () => {
   const html = previewEl.dataset.html || '';
   if (!html.trim()) return (statusEl.textContent = '请先输入并转换内容');
+  if (lastLocalImageStats.missing.length) {
+    statusEl.textContent = `还有 ${lastLocalImageStats.missing.length} 张本地图片未导入，请先点“导入图片”选择文件`;
+    return;
+  }
   try {
-    await copyRichHtml(html);
-    statusEl.textContent = '复制成功，可去公众号编辑器粘贴';
-  } catch {
-    statusEl.textContent = '复制失败，请手动全选预览区复制';
+    const copyHtml = await htmlReadyForWechatCopy(html);
+    if (!copyHtml) return;
+    await copyRichHtml(copyHtml);
+    statusEl.textContent = localImageRecordsForCurrentPreview().length
+      ? '复制成功，本地图片已替换为 OSS 临时链接'
+      : '复制成功，可去公众号编辑器粘贴';
+  } catch (err) {
+    console.error(err);
+    statusEl.textContent = err?.message || '复制失败，请手动全选预览区复制';
   }
 });
 document.getElementById('copyMdBtn').addEventListener('click', async () => {
@@ -520,6 +1085,8 @@ document.getElementById('clearBtn').addEventListener('click', () => {
   markdownEl.value = '';
   previewEl.innerHTML = '';
   previewEl.dataset.html = '';
+  localImageSources.clear();
+  lastLocalImageStats = { resolved: 0, missing: [], records: [] };
   statusEl.textContent = '';
 });
 fileInput.addEventListener('change', async (e) => {
@@ -527,6 +1094,27 @@ fileInput.addEventListener('change', async (e) => {
   if (!file) return;
   markdownEl.value = await file.text();
   render();
+});
+imageFileInput?.addEventListener('change', async (e) => {
+  const files = e.target.files;
+  if (!files?.length) return;
+  statusEl.textContent = '正在导入本地图片...';
+  try {
+    const stats = await importLocalImageFiles(files);
+    if (!stats.imported) {
+      statusEl.textContent = '没有找到可导入的图片文件';
+      return;
+    }
+    render();
+    statusEl.textContent = lastLocalImageStats.missing.length
+      ? `已导入 ${stats.imported} 张图片，仍有 ${lastLocalImageStats.missing.length} 张未匹配`
+      : `已导入 ${stats.imported} 张图片，可本地预览；复制时会询问是否临时上传`;
+  } catch (err) {
+    console.error(err);
+    statusEl.textContent = '导入图片失败，请确认文件格式是否为图片';
+  } finally {
+    imageFileInput.value = '';
+  }
 });
 
 // ===== HTML to Markdown converter =====

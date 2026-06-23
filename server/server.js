@@ -9,6 +9,7 @@
  *   POST /api/ocr/jobs           → 转发到 PaddleOCR 提交任务（注入 .env 里的 Token）
  *   GET  /api/ocr/jobs/:id       → 转发到 PaddleOCR 查询状态
  *   GET  /api/proxy?url=...      → 受限白名单内的任意 URL 透传（用于下载结果 JSON 与图片）
+ *   POST /api/oss/temp-images    → 上传匿名用户本地图片到 OSS 临时目录，用于复制到公众号
  *   其他                          → 作为静态文件从项目根目录返回
  */
 'use strict';
@@ -16,6 +17,7 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 
 const ROOT = path.resolve(__dirname, '..');
 
@@ -41,6 +43,15 @@ loadEnv(path.join(ROOT, '.env'));
 const PORT = parseInt(process.env.PORT, 10) || 8080;
 const TOKEN = process.env.PADDLE_OCR_TOKEN || '';
 const PADDLE_OCR_BASE = process.env.PADDLE_OCR_BASE || 'https://paddleocr.aistudio-app.com/api/v2/ocr/jobs';
+const OSS_ACCESS_KEY_ID = process.env.OSS_ACCESS_KEY_ID || '';
+const OSS_ACCESS_KEY_SECRET = process.env.OSS_ACCESS_KEY_SECRET || '';
+const OSS_BUCKET = process.env.OSS_BUCKET || '';
+const OSS_ENDPOINT = (process.env.OSS_ENDPOINT || '').replace(/^https?:\/\//, '').replace(/\/+$/, '');
+const OSS_PUBLIC_BASE_URL = (process.env.OSS_PUBLIC_BASE_URL || '').replace(/\/+$/, '');
+const OSS_TEMP_PREFIX = (process.env.OSS_TEMP_PREFIX || 'temp/').replace(/^\/+/, '').replace(/\/?$/, '/');
+const OSS_MAX_IMAGES = parseInt(process.env.OSS_MAX_IMAGES, 10) || 12;
+const OSS_MAX_IMAGE_BYTES = parseInt(process.env.OSS_MAX_IMAGE_BYTES, 10) || 2 * 1024 * 1024;
+const OSS_MAX_REQUEST_BYTES = parseInt(process.env.OSS_MAX_REQUEST_BYTES, 10) || 30 * 1024 * 1024;
 
 // 允许 /api/proxy 透传的主机后缀（逗号分隔），默认覆盖 PaddleOCR 与百度对象存储
 const DEFAULT_PROXY_HOSTS = '.aistudio-app.com,.bcebos.com';
@@ -59,10 +70,19 @@ function sendJson(res, status, obj) {
   res.end(body);
 }
 
-function readBody(req) {
+function readBody(req, maxBytes = 0) {
   return new Promise((resolve, reject) => {
     const chunks = [];
-    req.on('data', (c) => chunks.push(c));
+    let total = 0;
+    req.on('data', (c) => {
+      total += c.length;
+      if (maxBytes && total > maxBytes) {
+        reject(new Error('请求体过大'));
+        req.destroy();
+        return;
+      }
+      chunks.push(c);
+    });
     req.on('end', () => resolve(Buffer.concat(chunks)));
     req.on('error', reject);
   });
@@ -91,16 +111,187 @@ function hostAllowed(hostname) {
   );
 }
 
-// ---------- API 处理 ----------
-async function handleApi(req, res, urlObj) {
-  if (!TOKEN) {
+function ossConfigured() {
+  return !!(OSS_ACCESS_KEY_ID && OSS_ACCESS_KEY_SECRET && OSS_BUCKET && OSS_ENDPOINT);
+}
+
+function normalizeObjectKey(key) {
+  return key.split('/').map(encodeURIComponent).join('/');
+}
+
+function publicObjectUrl(objectKey) {
+  const encodedKey = normalizeObjectKey(objectKey);
+  if (OSS_PUBLIC_BASE_URL) return `${OSS_PUBLIC_BASE_URL}/${encodedKey}`;
+  return `https://${OSS_BUCKET}.${OSS_ENDPOINT}/${encodedKey}`;
+}
+
+function ossSign(method, contentType, date, objectKey, ossHeaders = {}) {
+  const canonicalHeaders = Object.keys(ossHeaders)
+    .map((name) => name.toLowerCase())
+    .sort()
+    .map((name) => `${name}:${ossHeaders[name]}\n`)
+    .join('');
+  const canonicalResource = `/${OSS_BUCKET}/${objectKey}`;
+  const stringToSign = [
+    method,
+    '',
+    contentType || '',
+    date,
+    canonicalHeaders + canonicalResource,
+  ].join('\n');
+  const signature = crypto
+    .createHmac('sha1', OSS_ACCESS_KEY_SECRET)
+    .update(stringToSign, 'utf8')
+    .digest('base64');
+  return `OSS ${OSS_ACCESS_KEY_ID}:${signature}`;
+}
+
+function detectImage(buffer, declaredType, name) {
+  const lowerName = String(name || '').toLowerCase();
+  if (
+    buffer.length >= 4 &&
+    buffer[0] === 0xff &&
+    buffer[1] === 0xd8 &&
+    buffer[2] === 0xff
+  ) return { mime: 'image/jpeg', ext: 'jpg' };
+  if (
+    buffer.length >= 8 &&
+    buffer[0] === 0x89 &&
+    buffer[1] === 0x50 &&
+    buffer[2] === 0x4e &&
+    buffer[3] === 0x47 &&
+    buffer[4] === 0x0d &&
+    buffer[5] === 0x0a &&
+    buffer[6] === 0x1a &&
+    buffer[7] === 0x0a
+  ) return { mime: 'image/png', ext: 'png' };
+  if (
+    buffer.length >= 6 &&
+    (buffer.slice(0, 6).toString('ascii') === 'GIF87a' || buffer.slice(0, 6).toString('ascii') === 'GIF89a')
+  ) return { mime: 'image/gif', ext: 'gif' };
+  if (
+    buffer.length >= 12 &&
+    buffer.slice(0, 4).toString('ascii') === 'RIFF' &&
+    buffer.slice(8, 12).toString('ascii') === 'WEBP'
+  ) return { mime: 'image/webp', ext: 'webp' };
+  if (buffer.length >= 2 && buffer[0] === 0x42 && buffer[1] === 0x4d) {
+    return { mime: 'image/bmp', ext: 'bmp' };
+  }
+  if (buffer.length >= 12 && buffer.slice(4, 8).toString('ascii') === 'ftyp') {
+    const brand = buffer.slice(8, 12).toString('ascii');
+    if (brand === 'avif' || brand === 'avis') return { mime: 'image/avif', ext: 'avif' };
+  }
+  if (/^image\/(jpeg|jpg|png|gif|webp|bmp|avif)$/i.test(declaredType || '')) {
+    const mime = declaredType.toLowerCase().replace('image/jpg', 'image/jpeg');
+    return { mime, ext: mime === 'image/jpeg' ? 'jpg' : mime.slice('image/'.length) };
+  }
+  if (/\.(jpe?g|png|gif|webp|bmp|avif)$/i.test(lowerName)) {
+    const ext = lowerName.match(/\.(jpe?g|png|gif|webp|bmp|avif)$/i)[1].replace('jpeg', 'jpg');
+    return { mime: ext === 'jpg' ? 'image/jpeg' : `image/${ext}`, ext };
+  }
+  return null;
+}
+
+function dataUrlToImage(dataUrl, name) {
+  const match = String(dataUrl || '').match(/^data:([^;,]+);base64,([A-Za-z0-9+/=\s]+)$/);
+  if (!match) throw new Error(`${name || '图片'} 不是合法的 base64 图片`);
+  if (/svg/i.test(match[1])) throw new Error('临时图床不接收 SVG 图片');
+  const buffer = Buffer.from(match[2].replace(/\s/g, ''), 'base64');
+  if (!buffer.length) throw new Error(`${name || '图片'} 内容为空`);
+  if (buffer.length > OSS_MAX_IMAGE_BYTES) {
+    throw new Error(`${name || '图片'} 超过大小限制 ${Math.round(OSS_MAX_IMAGE_BYTES / 1024 / 1024)}MB`);
+  }
+  const detected = detectImage(buffer, match[1], name);
+  if (!detected) throw new Error(`${name || '图片'} 不是支持的图片格式`);
+  return { buffer, mime: detected.mime, ext: detected.ext };
+}
+
+function makeTempObjectKey(name, ext) {
+  const now = new Date();
+  const yyyy = String(now.getUTCFullYear());
+  const mm = String(now.getUTCMonth() + 1).padStart(2, '0');
+  const dd = String(now.getUTCDate()).padStart(2, '0');
+  const safeStem = path
+    .basename(String(name || 'image'), path.extname(String(name || 'image')))
+    .replace(/[^\w.-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 40) || 'image';
+  return `${OSS_TEMP_PREFIX}${yyyy}/${mm}/${dd}/${crypto.randomUUID()}-${safeStem}.${ext}`;
+}
+
+async function putObjectToOss(objectKey, buffer, contentType) {
+  const date = new Date().toUTCString();
+  const ossHeaders = {
+    'x-oss-object-acl': 'public-read',
+  };
+  const headers = {
+    Date: date,
+    'Content-Type': contentType,
+    'Content-Length': String(buffer.length),
+    'Cache-Control': 'public, max-age=86400',
+    ...ossHeaders,
+  };
+  headers.Authorization = ossSign('PUT', contentType, date, objectKey, ossHeaders);
+
+  const upstream = await fetch(`https://${OSS_BUCKET}.${OSS_ENDPOINT}/${normalizeObjectKey(objectKey)}`, {
+    method: 'PUT',
+    headers,
+    body: buffer,
+  });
+  if (!upstream.ok) {
+    const text = await upstream.text().catch(() => '');
+    throw new Error(`OSS 上传失败 ${upstream.status}: ${text.slice(0, 200)}`);
+  }
+}
+
+async function handleTempOssImages(req, res) {
+  if (!ossConfigured()) {
     return sendJson(res, 500, {
-      error: '服务端未配置 PADDLE_OCR_TOKEN，请在项目根目录的 .env 中设置后重启。',
+      error: '服务端未配置 OSS 临时图床，请设置 OSS_ACCESS_KEY_ID / OSS_ACCESS_KEY_SECRET / OSS_BUCKET / OSS_ENDPOINT 后重启。',
     });
   }
 
+  const body = await readBody(req, OSS_MAX_REQUEST_BYTES);
+  let payload;
+  try {
+    payload = JSON.parse(body.toString('utf8'));
+  } catch (_) {
+    return sendJson(res, 400, { error: '请求体必须是 JSON' });
+  }
+
+  const images = Array.isArray(payload.images) ? payload.images : [];
+  if (!images.length) return sendJson(res, 400, { error: '缺少 images' });
+  if (images.length > OSS_MAX_IMAGES) return sendJson(res, 400, { error: `单次最多上传 ${OSS_MAX_IMAGES} 张图片` });
+
+  const uploaded = [];
+  for (const item of images) {
+    const name = item && item.name ? String(item.name) : 'image';
+    const image = dataUrlToImage(item && item.dataUrl, name);
+    const objectKey = makeTempObjectKey(name, image.ext);
+    await putObjectToOss(objectKey, image.buffer, image.mime);
+    uploaded.push({
+      id: item && item.id ? String(item.id) : '',
+      name,
+      key: objectKey,
+      url: publicObjectUrl(objectKey),
+      size: image.buffer.length,
+      type: image.mime,
+    });
+  }
+
+  console.log(`[oss] uploaded temp images count=${uploaded.length}`);
+  return sendJson(res, 200, { images: uploaded, prefix: OSS_TEMP_PREFIX });
+}
+
+// ---------- API 处理 ----------
+async function handleApi(req, res, urlObj) {
   // POST /api/ocr/jobs —— 透传客户端的 multipart 请求体
   if (req.method === 'POST' && urlObj.pathname === '/api/ocr/jobs') {
+    if (!TOKEN) {
+      return sendJson(res, 500, {
+        error: '服务端未配置 PADDLE_OCR_TOKEN，请在项目根目录的 .env 中设置后重启。',
+      });
+    }
     const body = await readBody(req);
     console.log(`[proxy] POST submit  size=${body.length}B  ct=${req.headers['content-type']}`);
     const upstream = await fetch(PADDLE_OCR_BASE, {
@@ -118,11 +309,20 @@ async function handleApi(req, res, urlObj) {
   // GET /api/ocr/jobs/:id
   const m = urlObj.pathname.match(/^\/api\/ocr\/jobs\/([\w-]+)$/);
   if (req.method === 'GET' && m) {
+    if (!TOKEN) {
+      return sendJson(res, 500, {
+        error: '服务端未配置 PADDLE_OCR_TOKEN，请在项目根目录的 .env 中设置后重启。',
+      });
+    }
     const upstream = await fetch(`${PADDLE_OCR_BASE}/${m[1]}`, {
       headers: { Authorization: `bearer ${TOKEN}` },
     });
     console.log(`[proxy] GET  status   jobId=${m[1].slice(0,8)}…  upstream=${upstream.status}`);
     return pipeUpstream(res, upstream);
+  }
+
+  if (req.method === 'POST' && urlObj.pathname === '/api/oss/temp-images') {
+    return handleTempOssImages(req, res);
   }
 
   // 友好错误：GET /api/ocr/jobs 没带 jobId
@@ -229,5 +429,6 @@ server.listen(PORT, () => {
   console.log(`MarkNice server running at http://localhost:${PORT}`);
   console.log(`  ✓ 静态文件根目录: ${ROOT}`);
   console.log(`  ✓ PaddleOCR token: ${TOKEN ? '已加载' : '⚠ 未配置（PDF 导入将不可用）'}`);
+  console.log(`  ✓ OSS 临时图床: ${ossConfigured() ? `${OSS_BUCKET}/${OSS_TEMP_PREFIX}` : '⚠ 未配置'}`);
   console.log(`  ✓ /api/proxy 白名单: ${PROXY_ALLOWED_SUFFIXES.join(', ')}`);
 });

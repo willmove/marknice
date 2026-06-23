@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title desc">
+  <title id="title">MarkNice icon</title>
+  <desc id="desc">A polished document mark for Markdown and WeChat article formatting.</desc>
+  <defs>
+    <linearGradient id="marknice-bg" x1="10" y1="8" x2="56" y2="58" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#4f46e5"/>
+      <stop offset="0.56" stop-color="#6366f1"/>
+      <stop offset="1" stop-color="#ec4899"/>
+    </linearGradient>
+    <linearGradient id="marknice-accent" x1="22" y1="18" x2="48" y2="44" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#67e8f9"/>
+      <stop offset="1" stop-color="#ffffff"/>
+    </linearGradient>
+    <filter id="marknice-shadow" x="8" y="8" width="48" height="52" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="#312e81" flood-opacity="0.25"/>
+    </filter>
+  </defs>
+  <rect width="64" height="64" rx="16" fill="url(#marknice-bg)"/>
+  <path d="M18 13h22l10 10v25.5A5.5 5.5 0 0 1 44.5 54h-26A5.5 5.5 0 0 1 13 48.5v-30A5.5 5.5 0 0 1 18 13Z" fill="#fff" filter="url(#marknice-shadow)"/>
+  <path d="M40 13v7.5a2.5 2.5 0 0 0 2.5 2.5H50" fill="#eef2ff"/>
+  <path d="M22 40V27l6.7 7.7L35.4 27v13" fill="none" stroke="#4f46e5" stroke-linecap="round" stroke-linejoin="round" stroke-width="4"/>
+  <path d="M41 31h5M41 39h5" stroke="url(#marknice-accent)" stroke-linecap="round" stroke-width="4"/>
+  <circle cx="47" cy="17" r="3" fill="#67e8f9"/>
+</svg>
