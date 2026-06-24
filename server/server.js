@@ -49,6 +49,7 @@ const OSS_BUCKET = process.env.OSS_BUCKET || '';
 const OSS_ENDPOINT = (process.env.OSS_ENDPOINT || '').replace(/^https?:\/\//, '').replace(/\/+$/, '');
 const OSS_PUBLIC_BASE_URL = (process.env.OSS_PUBLIC_BASE_URL || '').replace(/\/+$/, '');
 const OSS_TEMP_PREFIX = (process.env.OSS_TEMP_PREFIX || 'temp/').replace(/^\/+/, '').replace(/\/?$/, '/');
+const OSS_OBJECT_ACL = (process.env.OSS_OBJECT_ACL || 'public-read').trim().toLowerCase();
 const OSS_MAX_IMAGES = parseInt(process.env.OSS_MAX_IMAGES, 10) || 12;
 const OSS_MAX_IMAGE_BYTES = parseInt(process.env.OSS_MAX_IMAGE_BYTES, 10) || 2 * 1024 * 1024;
 const OSS_MAX_REQUEST_BYTES = parseInt(process.env.OSS_MAX_REQUEST_BYTES, 10) || 30 * 1024 * 1024;
@@ -219,11 +220,10 @@ function makeTempObjectKey(name, ext) {
   return `${OSS_TEMP_PREFIX}${yyyy}/${mm}/${dd}/${crypto.randomUUID()}-${safeStem}.${ext}`;
 }
 
-async function putObjectToOss(objectKey, buffer, contentType) {
+async function putObjectToOssOnce(objectKey, buffer, contentType, objectAcl) {
   const date = new Date().toUTCString();
-  const ossHeaders = {
-    'x-oss-object-acl': 'public-read',
-  };
+  const ossHeaders = {};
+  if (objectAcl && objectAcl !== 'none' && objectAcl !== 'bucket') ossHeaders['x-oss-object-acl'] = objectAcl;
   const headers = {
     Date: date,
     'Content-Type': contentType,
@@ -238,9 +238,25 @@ async function putObjectToOss(objectKey, buffer, contentType) {
     headers,
     body: buffer,
   });
-  if (!upstream.ok) {
-    const text = await upstream.text().catch(() => '');
-    throw new Error(`OSS 上传失败 ${upstream.status}: ${text.slice(0, 200)}`);
+  const text = upstream.ok ? '' : await upstream.text().catch(() => '');
+  return { ok: upstream.ok, status: upstream.status, text };
+}
+
+async function putObjectToOss(objectKey, buffer, contentType) {
+  let result = await putObjectToOssOnce(objectKey, buffer, contentType, OSS_OBJECT_ACL);
+  if (
+    !result.ok &&
+    OSS_OBJECT_ACL &&
+    OSS_OBJECT_ACL !== 'none' &&
+    OSS_OBJECT_ACL !== 'bucket' &&
+    result.status === 403 &&
+    /bucket acl|access.*object/i.test(result.text)
+  ) {
+    console.warn('[oss] object ACL rejected by bucket policy, retrying without x-oss-object-acl');
+    result = await putObjectToOssOnce(objectKey, buffer, contentType, 'none');
+  }
+  if (!result.ok) {
+    throw new Error(`OSS 上传失败 ${result.status}: ${result.text.slice(0, 200)}`);
   }
 }
 
