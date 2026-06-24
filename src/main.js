@@ -276,7 +276,7 @@ function makeTokenTheme(theme) {
       li: 'margin:6px 0;font-size:16px;',
       a: `color:${theme.accent};text-decoration:none;border-bottom:1px solid ${theme.accent};`,
       img: 'max-width:100%;height:auto;border-radius:8px;display:block;margin:20px auto;',
-      pre: `margin:18px 0;padding:14px 16px;overflow:auto;background:${theme.codeBg};border-radius:8px;color:${codeText};font-family:Menlo,Consolas,monospace;font-size:14px;line-height:1.7;white-space:normal;word-break:break-all;`,
+      pre: `margin:18px 0;padding:14px 16px;overflow:auto;background:${theme.codeBg};border-radius:8px;color:${codeText};font-family:Menlo,Consolas,monospace;font-size:14px;line-height:1.7;white-space:pre-wrap;word-break:break-word;overflow-wrap:anywhere;`,
       code: `font-family:Menlo,Consolas,monospace;background:${theme.codeBg};color:${theme.accent};display:inline;white-space:normal;padding:2px 6px;border-radius:4px;font-size:0.92em;`,
       'strong,b': `color:${strongColor};font-weight:700;`,
       mark: `background:${theme.markBg || theme.quoteBg};color:${theme.heading};padding:1px 4px;border-radius:3px;`,
@@ -537,7 +537,7 @@ function sanitizeForWechat(html) {
   applyInlineStyles(root, theme.styles, offset);
   // Reset code styles inside pre blocks to avoid extra indentation
   root.querySelectorAll('pre code').forEach(el => {
-    el.setAttribute('style', 'background:none;padding:0;border-radius:0;font-size:inherit;font-family:Menlo,Consolas,monospace;');
+    el.setAttribute('style', 'background:none;padding:0;border-radius:0;font-size:inherit;font-family:Menlo,Consolas,monospace;white-space:inherit;word-break:inherit;overflow-wrap:inherit;');
   });
   // Insert LRM (U+200E) before inline <code> and <strong> inside list items and table cells
   // to prevent WeChat editor from breaking them into separate lines

@@ -145,6 +145,54 @@
       line-height: 1.85;
       color: var(--text-secondary);
     }
+    .star-callout {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 20px 22px;
+      margin: 36px 0 0;
+      background: var(--bg-soft);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+    }
+    .star-callout h2 {
+      margin: 0 0 6px;
+      padding: 0;
+      border: 0;
+      font-size: 18px;
+    }
+    .star-callout p {
+      margin: 0;
+      font-size: 14px;
+      line-height: 1.7;
+    }
+    .star-link {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      flex: 0 0 auto;
+      padding: 10px 16px;
+      border-radius: 8px;
+      background: var(--text);
+      color: var(--bg);
+      font-size: 14px;
+      font-weight: 600;
+      text-decoration: none;
+      transition: opacity 0.2s, transform 0.2s;
+      white-space: nowrap;
+    }
+    .star-link:hover {
+      opacity: 0.86;
+      transform: translateY(-1px);
+    }
+    .star-link svg {
+      width: 16px;
+      height: 16px;
+      fill: currentColor;
+      stroke: currentColor;
+    }
     .back-link {
       display: inline-flex;
       align-items: center;
@@ -163,6 +211,12 @@
       .guide-content h2 { font-size: 19px; margin-top: 36px; }
       .guide-content { padding: 0 16px; }
       .step-card { padding: 18px; }
+      .star-callout {
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 18px;
+      }
+      .star-link { width: 100%; }
     }
   </style>
 </head>
@@ -323,6 +377,17 @@
       <div class="faq-item">
         <p class="faq-q">Q：我的数据安全吗？</p>
         <p class="faq-a">所有操作都在你的浏览器本地完成，文档内容不会上传到任何服务器。</p>
+      </div>
+
+      <div class="star-callout">
+        <div>
+          <h2>喜欢 MarkNice？</h2>
+          <p>如果这个项目帮到了你，欢迎到 GitHub 点个 Star，支持它继续保持开源、简单、好用。</p>
+        </div>
+        <a class="star-link" href="https://github.com/willmove/marknice" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5-5.8-3.1-5.8 3.1 1.1-6.5-4.7-4.6 6.5-.9L12 2.5z"/></svg>
+          去 GitHub 加 Star
+        </a>
       </div>
 
       <a href="./index.html" class="back-link">
