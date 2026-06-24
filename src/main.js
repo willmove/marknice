@@ -428,6 +428,51 @@ function applyInlineStyles(container, styleMap, offset = 0) {
   });
 }
 
+function stripMarkdownInline(text) {
+  return String(text || '')
+    .replace(/!\[([^\]]*)\]\((?:[^()\\]|\\.)*\)/g, '$1')
+    .replace(/\[([^\]]+)\]\((?:[^()\\]|\\.)*\)/g, '$1')
+    .replace(/[*_`~]/g, '')
+    .replace(/<[^>]+>/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function extractDocumentTitle(md) {
+  const lines = String(md || '').split(/\r?\n/);
+  let firstTextLine = '';
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    if (!line) continue;
+    if (!firstTextLine) firstTextLine = line;
+    const headingMatch = line.match(/^#{1,6}\s+(.+?)\s*#*$/);
+    if (headingMatch) {
+      const title = stripMarkdownInline(headingMatch[1]);
+      if (title) return title;
+    }
+  }
+  if (!firstTextLine) return '';
+  return stripMarkdownInline(firstTextLine.replace(/^[>+-]\s+/, '').replace(/^\d+[.)\u3001]\s+/, ''));
+}
+
+function sanitizeFileNamePart(text, fallback) {
+  const safe = String(text || '')
+    .replace(/[\\/:*?"<>|]/g, ' ')
+    .replace(/[\u0000-\u001f\u007f]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .replace(/[. ]+$/g, '')
+    .trim();
+  return (safe || fallback || 'MarkNice-导出文档').slice(0, 80);
+}
+
+function getExportTitle() {
+  return extractDocumentTitle(markdownEl.value) || 'MarkNice 导出文档';
+}
+
+function getExportBaseName() {
+  return sanitizeFileNamePart(getExportTitle(), 'MarkNice-导出文档');
+}
+
 function detectHeadingNumberPrefix(text) {
   const patterns = [
     /^\s*[（(]\s*([0-9]{1,2}|[一二三四五六七八九十百]+)\s*[)）][、.．:：]?\s*/,
@@ -606,9 +651,17 @@ function render() {
 }
 
 async function copyRichHtml(html) {
+  const plainText = (() => {
+    try {
+      const doc = new DOMParser().parseFromString(html, 'text/html');
+      return doc.body.innerText || doc.body.textContent || previewEl.innerText;
+    } catch (_) {
+      return previewEl.innerText;
+    }
+  })();
   if (navigator.clipboard && window.ClipboardItem) {
     const blobHtml = new Blob([html], { type: 'text/html' });
-    const blobText = new Blob([previewEl.innerText], { type: 'text/plain' });
+    const blobText = new Blob([plainText], { type: 'text/plain' });
     await navigator.clipboard.write([new ClipboardItem({ 'text/html': blobHtml, 'text/plain': blobText })]);
     return;
   }
@@ -1031,37 +1084,84 @@ function htmlWithUploadedLocalImages(html) {
   return root.outerHTML;
 }
 
+function localImagePlaceholderText(img, record) {
+  const alt = (img.getAttribute('alt') || '').trim();
+  const src = (img.getAttribute('src') || '').trim();
+  const name = alt || record?.name || (imageSrcIsLocalCandidate(src) ? localImageBasename(src) : '') || '图片';
+  return `【${name}，请在公众号编辑器中手动上传】`;
+}
+
+function replaceImageWithTextPlaceholder(doc, img, record) {
+  const placeholder = doc.createElement('span');
+  placeholder.textContent = localImagePlaceholderText(img, record);
+  placeholder.setAttribute(
+    'style',
+    'display:block;text-align:center;margin:12px 0;color:#999;font-size:13px;line-height:1.8;'
+  );
+  img.replaceWith(placeholder);
+}
+
+function htmlWithoutLocalImages(html) {
+  const doc = new DOMParser().parseFromString(`<section>${html}</section>`, 'text/html');
+  const root = doc.body.firstElementChild;
+  const recordsById = new Map((lastLocalImageStats.records || []).map(record => [record.id, record]));
+  root.querySelectorAll('img').forEach(img => {
+    const src = img.getAttribute('src') || '';
+    const record = recordsById.get(img.getAttribute('data-mn-local-image-id'));
+    if (img.hasAttribute('data-mn-local-image-id') || imageSrcIsLocalCandidate(src)) {
+      replaceImageWithTextPlaceholder(doc, img, record);
+    }
+  });
+  return root.outerHTML;
+}
+
 async function htmlReadyForWechatCopy(html) {
   const records = localImageRecordsForCurrentPreview();
-  if (!records.length) return html;
+  const missingCount = lastLocalImageStats.missing.length;
+  if (missingCount) {
+    const ok = window.confirm(
+      `还有 ${missingCount} 张本地图片没有导入，无法完整上传到临时图床。\n\n点击“确定”会移除这些本地图片，并在原位置保留文字占位后复制正文。\n点击“取消”则先返回编辑器，请点“导入图片”选择对应文件。`
+    );
+    if (!ok) {
+      statusEl.textContent = '已取消复制，请先导入缺失的本地图片';
+      return null;
+    }
+    return { html: htmlWithoutLocalImages(html), mode: 'text-only' };
+  }
+
+  if (!records.length) return { html, mode: 'normal' };
 
   const ok = window.confirm(
     `检测到 ${records.length} 张本地图片。\n\n点击“确定”后，图片会临时上传到 MarkNice 的 OSS 中转区，再复制可粘贴到公众号的内容。\n图片会按服务端生命周期规则自动删除。\n\n点击“取消”则不复制，请手动处理图片。`
   );
-  if (!ok) {
+  if (ok) {
+    statusEl.textContent = `正在临时上传 ${records.length} 张图片...`;
+    await uploadLocalImagesForCopy(records);
+    return { html: htmlWithUploadedLocalImages(html), mode: 'oss' };
+  }
+
+  const textOnly = window.confirm(
+    '不上传图片。\n\n点击“确定”会移除本地图片，并在原位置保留文字占位后复制正文。\n点击“取消”则不复制。'
+  );
+  if (!textOnly) {
     statusEl.textContent = '已取消复制，本地图片未上传';
     return null;
   }
-
-  statusEl.textContent = `正在临时上传 ${records.length} 张图片...`;
-  await uploadLocalImagesForCopy(records);
-  return htmlWithUploadedLocalImages(html);
+  return { html: htmlWithoutLocalImages(html), mode: 'text-only' };
 }
 
 document.getElementById('copyBtn').addEventListener('click', async () => {
   const html = previewEl.dataset.html || '';
   if (!html.trim()) return (statusEl.textContent = '请先输入并转换内容');
-  if (lastLocalImageStats.missing.length) {
-    statusEl.textContent = `还有 ${lastLocalImageStats.missing.length} 张本地图片未导入，请先点“导入图片”选择文件`;
-    return;
-  }
   try {
-    const copyHtml = await htmlReadyForWechatCopy(html);
-    if (!copyHtml) return;
-    await copyRichHtml(copyHtml);
-    statusEl.textContent = localImageRecordsForCurrentPreview().length
+    const result = await htmlReadyForWechatCopy(html);
+    if (!result) return;
+    await copyRichHtml(result.html);
+    statusEl.textContent = result.mode === 'oss'
       ? '复制成功，本地图片已替换为 OSS 临时链接'
-      : '复制成功，可去公众号编辑器粘贴';
+      : result.mode === 'text-only'
+        ? '复制成功，本地图片已替换为文字占位'
+        : '复制成功，可去公众号编辑器粘贴';
   } catch (err) {
     console.error(err);
     statusEl.textContent = err?.message || '复制失败，请手动全选预览区复制';
@@ -1078,7 +1178,59 @@ document.getElementById('copyMdBtn').addEventListener('click', async () => {
   }
 });
 document.getElementById('sampleBtn').addEventListener('click', () => {
-  markdownEl.value = `# 公众号排版标题\n\n这是一段**正文**，用于测试粘贴到微信公众号编辑器后的样式。\n\n## 二级标题\n\n- 列表项一\n- 列表项二\n\n> 这是引用区块，可以用于金句或重点提示。\n\n\`\`\`js\nconsole.log('hello wechat');\n\`\`\`\n\n[一个链接](https://mp.weixin.qq.com)`;
+  markdownEl.value = `# MarkNice 示例文章：把内容排得清楚又好看
+
+这是一段用于预览公众号排版效果的正文。你可以在这里看到**加粗重点**、*斜体补充说明*、\`行内代码\`、超链接、列表、引用、图片、表格和代码块等常见内容。
+
+访问 [微信公众平台](https://mp.weixin.qq.com) 可以查看文章发布与编辑入口，也可以把排版后的内容直接粘贴到公众号编辑器中。
+
+## 01 内容亮点
+
+1. 支持 Markdown 标题、段落、列表与引用。
+2. 支持 **粗体**、*斜体*、\`inline code\` 和 [超链接](https://github.com)。
+3. 支持图片、表格、代码块和数学公式。
+4. 支持导出 HTML、PDF、Word，方便二次编辑与归档。
+
+## 02 无序列表
+
+- 适合整理文章要点
+- 适合制作清单与行动项
+- 适合在公众号正文里保持节奏感
+
+> 好的排版不只是“好看”，也能让读者更快理解内容结构。
+
+## 03 图片展示
+
+![MarkNice 示例图片](https://images.unsplash.com/photo-1499750310107-5fef28a66643?auto=format&fit=crop&w=1200&q=80)
+
+图片下方可以继续接正文，用来说明场景、补充观点，或者放一段简短的图注。
+
+## 04 表格示例
+
+| 功能 | 适用场景 | 说明 |
+| --- | --- | --- |
+| Word 导入 | 原稿来自文档 | 保留标题、列表、表格等结构 |
+| PDF 导入 | 资料只有 PDF | 通过 OCR 转成可编辑内容 |
+| 富文本复制 | 发布公众号 | 直接粘贴到编辑器 |
+
+## 05 代码与公式
+
+\`\`\`js
+const title = 'MarkNice';
+console.log(\`欢迎使用 \${title}\`);
+\`\`\`
+
+行内公式示例：$E = mc^2$。
+
+块级公式示例：
+
+$$
+a^2 + b^2 = c^2
+$$
+
+## 06 结尾
+
+最后一段可以放行动号召，比如：如果这篇内容对你有帮助，欢迎收藏、转发，或者继续用 MarkNice 调整字号、段距和主题。`;
   render();
 });
 document.getElementById('clearBtn').addEventListener('click', () => {
@@ -1265,12 +1417,16 @@ wordFileInput.addEventListener('change', async (e) => {
 document.getElementById('saveHtmlBtn').addEventListener('click', () => {
   const html = previewEl.dataset.html || '';
   if (!html.trim()) return (statusEl.textContent = '请先输入并转换内容');
-  const fullHtml = '<!DOCTYPE html>\n<html lang="zh-CN">\n<head>\n<meta charset="UTF-8">\n<meta name="viewport" content="width=device-width, initial-scale=1.0">\n<title>导出内容</title>\n</head>\n<body>\n' + html + '\n</body>\n</html>';
+  const exportTitle = getExportTitle();
+  const titleEscaper = document.createElement('div');
+  titleEscaper.textContent = exportTitle;
+  const exportBaseName = getExportBaseName();
+  const fullHtml = '<!DOCTYPE html>\n<html lang="zh-CN">\n<head>\n<meta charset="UTF-8">\n<meta name="viewport" content="width=device-width, initial-scale=1.0">\n<title>' + titleEscaper.innerHTML + '</title>\n</head>\n<body>\n' + html + '\n</body>\n</html>';
   const blob = new Blob([fullHtml], { type: 'text/html;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = 'export.html';
+  a.download = exportBaseName + '.html';
   a.click();
   URL.revokeObjectURL(url);
   statusEl.textContent = '已保存为 HTML 文件';
@@ -1281,12 +1437,16 @@ document.getElementById('savePdfBtn').addEventListener('click', () => {
   const html = previewEl.dataset.html || '';
   if (!html.trim()) return (statusEl.textContent = '请先输入并转换内容');
   statusEl.textContent = '正在准备 PDF…';
+  const exportTitle = getExportTitle();
+  const titleEscaper = document.createElement('div');
+  titleEscaper.textContent = exportTitle;
   const iframe = document.createElement('iframe');
   iframe.style.cssText = 'position:fixed;left:-9999px;top:0;width:800px;height:600px;border:none;';
   document.body.appendChild(iframe);
   const doc = iframe.contentDocument || iframe.contentWindow.document;
   doc.open();
   doc.write('<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8">' +
+    '<title>' + titleEscaper.innerHTML + '</title>' +
     '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">' +
     '<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"><\/script>' +
     '<style>' +
@@ -1299,6 +1459,7 @@ document.getElementById('savePdfBtn').addEventListener('click', () => {
     '@media print{body{padding:0 20px}@page{margin:15mm 10mm}}' +
     '</style></head><body>' + html + '<\/body></html>');
   doc.close();
+  doc.title = exportTitle;
 
   iframe.contentWindow.onafterprint = () => {
     document.body.removeChild(iframe);
@@ -1363,6 +1524,196 @@ function wordUpsertStyle(style, prop, value) {
   const pattern = new RegExp(`(^|;)\\s*${prop}\\s*:[^;]*`, 'i');
   if (pattern.test(style)) return style.replace(pattern, `$1${prop}:${value}`);
   return `${style.replace(/;?\s*$/, '')};${prop}:${value}`;
+}
+
+function wordStyleValue(style, prop) {
+  const match = String(style || '').match(new RegExp(`(?:^|;)\\s*${prop}\\s*:\\s*([^;]+)`, 'i'));
+  return match ? match[1].trim() : '';
+}
+
+function wordHalfPxLength(value, fallback) {
+  const match = String(value || '').trim().match(/^(-?\d+(?:\.\d+)?)px$/i);
+  if (!match) return fallback;
+  return `${Math.max(Math.min(Number(match[1]) / 2, 2), 1).toFixed(2).replace(/\.?0+$/, '')}px`;
+}
+
+function wordPxLengthToPt(value, fallback) {
+  const match = String(value || '').trim().match(/^(-?\d+(?:\.\d+)?)px$/i);
+  if (!match) return fallback;
+  return `${wordPxToPt(Number(match[1]))}pt`;
+}
+
+function wordCompactTableBlockStyle(style) {
+  let nextStyle = style || '';
+  nextStyle = wordUpsertStyle(nextStyle, 'margin', '5pt 0cm');
+  nextStyle = wordUpsertStyle(nextStyle, 'margin-top', '5pt');
+  nextStyle = wordUpsertStyle(nextStyle, 'margin-bottom', '5pt');
+  nextStyle = wordUpsertStyle(nextStyle, 'mso-para-margin', '5pt 0cm 5pt 0cm');
+  nextStyle = wordUpsertStyle(nextStyle, 'mso-para-margin-top', '5pt');
+  nextStyle = wordUpsertStyle(nextStyle, 'mso-para-margin-bottom', '5pt');
+  nextStyle = wordUpsertStyle(nextStyle, 'mso-margin-top-alt', '5pt');
+  nextStyle = wordUpsertStyle(nextStyle, 'mso-margin-bottom-alt', '5pt');
+  nextStyle = wordUpsertStyle(nextStyle, 'line-height', '1.25');
+  nextStyle = wordUpsertStyle(nextStyle, 'mso-line-height-rule', 'at-least');
+  return nextStyle;
+}
+
+function wordAddClass(el, className) {
+  const classes = (el.getAttribute('class') || '').split(/\s+/).filter(Boolean);
+  if (!classes.includes(className)) classes.push(className);
+  el.setAttribute('class', classes.join(' '));
+}
+
+function wordLeftAlignStyle(style) {
+  let nextStyle = style || '';
+  nextStyle = wordUpsertStyle(nextStyle, 'text-align', 'left');
+  nextStyle = wordUpsertStyle(nextStyle, 'text-align-last', 'left');
+  nextStyle = wordUpsertStyle(nextStyle, 'text-justify', 'none');
+  return nextStyle;
+}
+
+function wordNodeHasVisibleContent(node) {
+  if (node.nodeType === 3) return !!node.nodeValue.trim();
+  if (node.nodeType !== 1) return false;
+  if (/^(br)$/i.test(node.tagName)) return false;
+  return !!(node.textContent || '').trim() || /^(img|svg|math)$/i.test(node.tagName);
+}
+
+function wordSegmentTextLength(nodes) {
+  return nodes
+    .map(node => node.textContent || '')
+    .join('')
+    .replace(/\s+/g, '')
+    .length;
+}
+
+function wordCreateSoftBreakParagraph(doc, nodes, sourceStyle, compact) {
+  if (!nodes.some(wordNodeHasVisibleContent)) return null;
+  const p = doc.createElement('p');
+  wordAddClass(p, 'MsoNormal');
+  let style = wordLeftAlignStyle(sourceStyle || '');
+  style = wordUpsertStyle(style, 'margin', compact ? '0 0 4pt 0' : '0 0 6pt 0');
+  style = wordUpsertStyle(style, 'mso-para-margin', compact ? '0 0 4pt 0' : '0 0 6pt 0');
+  style = wordUpsertStyle(style, 'line-height', '1.45');
+  style = wordUpsertStyle(style, 'mso-line-height-rule', 'at-least');
+  p.setAttribute('style', style);
+  nodes.forEach(node => p.appendChild(node.cloneNode(true)));
+  return p;
+}
+
+function wordSplitDirectSoftBreaks(doc, block) {
+  const children = Array.from(block.childNodes);
+  if (!children.some(node => node.nodeType === 1 && node.tagName === 'BR')) return;
+
+  const segments = [];
+  let current = [];
+  children.forEach(node => {
+    if (node.nodeType === 1 && node.tagName === 'BR') {
+      segments.push(current);
+      current = [];
+    } else {
+      current.push(node);
+    }
+  });
+  segments.push(current);
+
+  const firstLength = wordSegmentTextLength(segments[0] || []);
+  const inList = block.tagName === 'LI' || !!block.closest('li');
+  if (!inList && firstLength > 24) return;
+
+  const sourceStyle = wordLeftAlignStyle(block.getAttribute('style') || '');
+  const paragraphs = segments
+    .map((segment, index) => wordCreateSoftBreakParagraph(doc, segment, sourceStyle, index === 0 && firstLength <= 24))
+    .filter(Boolean);
+  if (!paragraphs.length) return;
+
+  if (block.tagName === 'LI') {
+    block.innerHTML = '';
+    block.setAttribute('style', sourceStyle);
+    paragraphs.forEach(p => block.appendChild(p));
+    return;
+  }
+
+  const parent = block.parentNode;
+  paragraphs.forEach(p => parent.insertBefore(p, block));
+  parent.removeChild(block);
+}
+
+function normalizeWordSoftBreaks(doc) {
+  doc.body.querySelectorAll('li').forEach(li => {
+    li.setAttribute('style', wordLeftAlignStyle(li.getAttribute('style') || ''));
+  });
+  Array.from(doc.body.querySelectorAll('li, p, div, section')).forEach(block => {
+    if (block.querySelector('br')) block.setAttribute('style', wordLeftAlignStyle(block.getAttribute('style') || ''));
+    wordSplitDirectSoftBreaks(doc, block);
+  });
+}
+
+function wordWrapInlineCellContent(doc, cell) {
+  const hasBlock = Array.from(cell.children).some(child => /^(p|div|section|ul|ol|table|blockquote|pre)$/i.test(child.tagName));
+  if (hasBlock) return;
+  const nodes = Array.from(cell.childNodes);
+  const hasContent = nodes.some(node => node.nodeType === 1 || (node.nodeType === 3 && node.nodeValue.trim()));
+  if (!hasContent) return;
+
+  const p = doc.createElement('p');
+  wordAddClass(p, 'MsoNormal');
+  p.setAttribute('style', wordCompactTableBlockStyle(''));
+  nodes.forEach(node => p.appendChild(node));
+  cell.appendChild(p);
+}
+
+function wordCompactTableCellStyle(style) {
+  const padding = wordStyleValue(style, 'padding');
+  const parts = padding ? padding.split(/\s+/).filter(Boolean) : [];
+  let top = '2px';
+  let right = '10px';
+  let bottom = '2px';
+  let left = '10px';
+
+  if (parts.length === 1) {
+    top = bottom = wordHalfPxLength(parts[0], top);
+    right = left = parts[0];
+  } else if (parts.length === 2) {
+    top = bottom = wordHalfPxLength(parts[0], top);
+    right = left = parts[1];
+  } else if (parts.length === 3) {
+    top = wordHalfPxLength(parts[0], top);
+    right = left = parts[1];
+    bottom = wordHalfPxLength(parts[2], bottom);
+  } else if (parts.length >= 4) {
+    top = wordHalfPxLength(parts[0], top);
+    right = parts[1];
+    bottom = wordHalfPxLength(parts[2], bottom);
+    left = parts[3];
+  }
+
+  let nextStyle = wordUpsertStyle(style, 'padding', `${top} ${right} ${bottom} ${left}`);
+  nextStyle = wordUpsertStyle(nextStyle, 'mso-padding-alt', `${wordPxLengthToPt(top, '1.5pt')} ${wordPxLengthToPt(right, '7.5pt')} ${wordPxLengthToPt(bottom, '1.5pt')} ${wordPxLengthToPt(left, '7.5pt')}`);
+  nextStyle = wordUpsertStyle(nextStyle, 'line-height', '1.25');
+  nextStyle = wordUpsertStyle(nextStyle, 'mso-line-height-rule', 'at-least');
+  return nextStyle;
+}
+
+function compactWordTableCells(doc) {
+  doc.body.querySelectorAll('table').forEach(table => {
+    let tableStyle = table.getAttribute('style') || '';
+    tableStyle = wordUpsertStyle(tableStyle, 'border-collapse', 'collapse');
+    tableStyle = wordUpsertStyle(tableStyle, 'border-spacing', '0');
+    tableStyle = wordUpsertStyle(tableStyle, 'mso-table-lspace', '0pt');
+    tableStyle = wordUpsertStyle(tableStyle, 'mso-table-rspace', '0pt');
+    table.setAttribute('style', tableStyle);
+    table.setAttribute('cellpadding', '0');
+    table.setAttribute('cellspacing', '0');
+  });
+  doc.body.querySelectorAll('td, th').forEach(cell => {
+    cell.setAttribute('style', wordCompactTableCellStyle(cell.getAttribute('style') || ''));
+    wordWrapInlineCellContent(doc, cell);
+    cell.querySelectorAll('p, div, section').forEach(block => {
+      wordAddClass(block, 'MsoNormal');
+      block.setAttribute('style', wordCompactTableBlockStyle(block.getAttribute('style') || ''));
+    });
+  });
 }
 
 function wordBytesFromDataUrl(src) {
@@ -1554,6 +1905,8 @@ async function wordMeasureImage(src, fallbackDimensions) {
 
 async function prepareHtmlForWordExport(html) {
   const doc = new DOMParser().parseFromString(`<body>${html}</body>`, 'text/html');
+  normalizeWordSoftBreaks(doc);
+  compactWordTableCells(doc);
   for (const img of Array.from(doc.body.querySelectorAll('img'))) {
     const src = img.getAttribute('src') || '';
     const dimensions = await wordMeasureImage(src, wordDataImageDimensions(src));
@@ -1596,6 +1949,10 @@ document.getElementById('saveWordBtn').addEventListener('click', async () => {
   try {
     statusEl.textContent = '正在生成 Word 文档…';
 
+    const exportTitle = getExportTitle();
+    const titleEscaper = document.createElement('div');
+    titleEscaper.textContent = exportTitle;
+    const exportBaseName = getExportBaseName();
     const wordBodyHtml = await prepareHtmlForWordExport(html);
 
     // Prepare HTML content with proper structure for Word
@@ -1606,7 +1963,7 @@ document.getElementById('saveWordBtn').addEventListener('click', async () => {
             xmlns='http://www.w3.org/TR/REC-html40'>
       <head>
         <meta charset='utf-8'>
-        <title>Export</title>
+        <title>${titleEscaper.innerHTML}</title>
         <style>
           body {
             font-family: 'PingFang SC', 'Microsoft YaHei', SimHei, sans-serif;
@@ -1622,7 +1979,8 @@ document.getElementById('saveWordBtn').addEventListener('click', async () => {
           h6 { font-size: 13px; margin: 10px 0 6px; font-weight: bold; }
           p { margin: 8px 0; }
           ul, ol { margin: 10px 0; padding-left: 24px; }
-          li { margin: 6px 0; }
+          li { margin: 6px 0; text-align: left; text-align-last: left; text-justify: none; }
+          li p, li div, li section { text-align: left; text-align-last: left; text-justify: none; }
           blockquote {
             margin: 10px 0;
             padding: 8px 16px;
@@ -1632,12 +1990,31 @@ document.getElementById('saveWordBtn').addEventListener('click', async () => {
           }
           table {
             border-collapse: collapse;
+            border-spacing: 0;
             width: 100%;
             margin: 10px 0;
+            mso-table-lspace: 0pt;
+            mso-table-rspace: 0pt;
           }
           td, th {
             border: 1px solid #ccc;
-            padding: 6px 10px;
+            padding: 2px 10px;
+            mso-padding-alt: 1.5pt 7.5pt 1.5pt 7.5pt;
+            line-height: 1.25;
+            mso-line-height-rule: at-least;
+          }
+          td p, th p, td div, th div,
+          td .MsoNormal, th .MsoNormal {
+            margin: 5pt 0cm;
+            margin-top: 5pt;
+            margin-bottom: 5pt;
+            mso-para-margin: 5pt 0cm 5pt 0cm;
+            mso-para-margin-top: 5pt;
+            mso-para-margin-bottom: 5pt;
+            mso-margin-top-alt: 5pt;
+            mso-margin-bottom-alt: 5pt;
+            line-height: 1.25;
+            mso-line-height-rule: at-least;
           }
           th { background: #f5f5f5; font-weight: bold; }
           pre {
@@ -1679,7 +2056,7 @@ document.getElementById('saveWordBtn').addEventListener('click', async () => {
     const url = URL.createObjectURL(converted);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'export.docx';
+    a.download = exportBaseName + '.docx';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
