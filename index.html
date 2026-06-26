@@ -1,306 +1,997 @@
 <!doctype html>
 <html lang="zh-CN">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>MarkNice - Markdown/Word 转微信公众号排版工具 | 免费在线格式转换</title>
-  <meta name="description" content="MarkNice 是一款免费在线工具，支持 Markdown 和 Word 文档一键转换为微信公众号排版格式。15 种主题风格，字号段距自由调节，还可导出为 PDF 和 Word 文件。无需登录，数据不上传。" />
-  <meta name="keywords" content="Markdown转公众号,微信公众号排版,Word转公众号,公众号格式转换,Markdown编辑器,MarkNice" />
-  <meta name="author" content="MarkNice" />
-  <link rel="canonical" href="https://marknice.cn/" />
-  <!-- Open Graph -->
-  <meta property="og:title" content="MarkNice - Markdown/Word 转微信公众号排版工具" />
-  <meta property="og:description" content="免费在线工具，Markdown 和 Word 一键转换为公众号排版格式。15 种主题，支持导出 PDF/Word。" />
-  <meta property="og:type" content="website" />
-  <meta property="og:url" content="https://marknice.cn/" />
-  <meta property="og:locale" content="zh_CN" />
-  <!-- Twitter Card -->
-  <meta name="twitter:card" content="summary" />
-  <meta name="twitter:title" content="MarkNice - Markdown/Word 转微信公众号排版工具" />
-  <meta name="twitter:description" content="免费在线工具，Markdown 和 Word 一键转换为公众号排版格式。15 种主题，支持导出 PDF/Word。" />
-  <!-- Favicon -->
-  <link rel="icon" type="image/svg+xml" href="./src/marknice-icon.svg" />
-  <!-- DNS prefetch & preconnect for CDN -->
-  <link rel="dns-prefetch" href="https://cdn.jsdelivr.net" />
-  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
-  <!-- Styles -->
-  <link rel="stylesheet" href="./src/styles.css" />
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" media="print" onload="this.media='all'" />
-  <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" /></noscript>
-  <!-- Editor dependencies (CDN) -->
-  <script defer src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-  <script defer src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
-  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
-  <script defer src="https://cdn.jsdelivr.net/npm/html-docx-js@0.3.1/dist/html-docx.js"></script>
-  <script defer src="./src/docx-parser.js"></script>
-</head>
-<body>
-  <a href="#editor" class="skip-link">跳转到编辑器</a>
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>
+            MarkNice - Markdown/Word 转微信公众号排版工具 | 免费在线格式转换
+        </title>
+        <meta
+            name="description"
+            content="MarkNice 是一款免费在线工具，支持 Markdown 和 Word 文档一键转换为微信公众号排版格式。15 种主题风格，字号段距自由调节，还可导出为 PDF 和 Word 文件。无需登录，数据不上传。"
+        />
+        <meta
+            name="keywords"
+            content="Markdown转公众号,微信公众号排版,Word转公众号,公众号格式转换,Markdown编辑器,MarkNice"
+        />
+        <meta name="author" content="MarkNice" />
+        <link rel="canonical" href="https://marknice.cn/" />
+        <!-- Open Graph -->
+        <meta
+            property="og:title"
+            content="MarkNice - Markdown/Word 转微信公众号排版工具"
+        />
+        <meta
+            property="og:description"
+            content="免费在线工具，Markdown 和 Word/PDF 一键转换为公众号排版格式。15 种主题，支持导出 PDF/Word。"
+        />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://marknice.cn/" />
+        <meta property="og:locale" content="zh_CN" />
+        <!-- Twitter Card -->
+        <meta name="twitter:card" content="summary" />
+        <meta
+            name="twitter:title"
+            content="MarkNice - Markdown/Word 转微信公众号排版工具"
+        />
+        <meta
+            name="twitter:description"
+            content="免费在线工具，Markdown 和 Word 一键转换为公众号排版格式。15 种主题，支持导出 PDF/Word。"
+        />
+        <!-- Favicon -->
+        <link rel="icon" type="image/svg+xml" href="./src/marknice-icon.svg" />
+        <!-- DNS prefetch & preconnect for CDN -->
+        <link rel="dns-prefetch" href="https://cdn.jsdelivr.net" />
+        <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+        <!-- Styles -->
+        <link rel="stylesheet" href="./src/styles.css" />
+        <link
+            rel="stylesheet"
+            href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css"
+            media="print"
+            onload="this.media = 'all'"
+        />
+        <noscript
+            ><link
+                rel="stylesheet"
+                href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css"
+        /></noscript>
+        <!-- Editor dependencies (CDN) -->
+        <script
+            defer
+            src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"
+        ></script>
+        <script
+            defer
+            src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"
+        ></script>
+        <script
+            defer
+            src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"
+        ></script>
+        <script
+            defer
+            src="https://cdn.jsdelivr.net/npm/html-docx-js@0.3.1/dist/html-docx.js"
+        ></script>
+        <script defer src="./src/docx-parser.js"></script>
+    </head>
+    <body>
+        <a href="#editor" class="skip-link">跳转到编辑器</a>
 
-  <!-- Navbar -->
-  <nav id="navbar" class="navbar" aria-label="主导航">
-    <div class="nav-inner">
-      <a href="/" class="logo" aria-label="MarkNice 首页">
-        <div class="logo-icon" aria-hidden="true">
-          <img src="./src/marknice-icon.svg" alt="" width="36" height="36" />
-        </div>
-        <span class="logo-text">MarkNice</span>
-        <span class="logo-tagline">一键转换 Markdown/Word 为公众号排版或另存为 Word/PDF 文档</span>
-      </a>
-      <div class="nav-actions">
-        <a href="#features" class="nav-btn" aria-label="特性介绍" style="text-decoration:none;font-size:13px;font-weight:500;width:auto;padding:0 12px;">
-          <svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-           &ensp;特性
-        </a>
-        <a href="./guide.html" class="nav-btn" aria-label="使用指导" style="text-decoration:none;font-size:13px;font-weight:500;width:auto;padding:0 12px;">
-          <svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-           &ensp;指导
-        </a>
-        <button id="modeToggleBtn" class="nav-btn" aria-label="切换深色/浅色模式">
-          <svg id="sunIcon" aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-          </svg>
-          <svg id="moonIcon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" style="display:none">
-            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-          </svg>
-        </button>
-      </div>
-    </div>
-  </nav>
-
-  <!-- Editor (primary, top of page) -->
-  <section id="editor" class="editor-section" style="padding-top:72px;">
-    <div class="container">
-      <div class="editor-grid">
-        <!-- Input Panel -->
-        <div class="editor-panel">
-          <div class="panel-header">
-            <div class="panel-dot red"></div>
-            <div class="panel-dot yellow"></div>
-            <div class="panel-dot green"></div>
-            <span class="panel-title">Markdown 输入</span>
-          </div>
-          <div class="panel-toolbar">
-            <label class="file-upload-btn">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-              <span class="btn-label">导入 MD</span>
-              <input type="file" id="fileInput" accept=".md,.markdown,.txt,text/markdown,text/plain" hidden />
-            </label>
-            <label class="file-upload-btn" title="导入 Word 文档（.docx）">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-              <span class="btn-label">导入 Word</span>
-              <input type="file" id="wordFileInput" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden />
-            </label>
-            <label class="file-upload-btn" title="导入 Markdown 中引用的本地图片（可多选）">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2" ry="2"/><circle cx="8.5" cy="10.5" r="1.5"/><path d="M21 16l-5-5L5 19"/></svg>
-              <span class="btn-label">导入图片</span>
-              <input type="file" id="imageFileInput" accept="image/*,.avif,.bmp,.svg,.webp" multiple hidden />
-            </label>
-            <button id="sampleBtn" class="toolbar-btn"><span class="btn-label">示例</span></button>
-            <button id="clearBtn" class="toolbar-btn"><span class="btn-label">清空</span></button>
-            <span id="status" class="status-text" aria-live="polite" aria-atomic="true"></span>
-          </div>
-          <div class="markdown-format-toolbar" role="toolbar" aria-label="Markdown 编辑工具">
-            <button type="button" class="format-btn heading-btn" data-md-action="heading1" title="一级标题" aria-label="一级标题">H1</button>
-            <button type="button" class="format-btn heading-btn" data-md-action="heading2" title="二级标题" aria-label="二级标题">H2</button>
-            <button type="button" class="format-btn heading-btn" data-md-action="heading3" title="三级标题" aria-label="三级标题">H3</button>
-            <button type="button" class="format-btn" data-md-action="bold" title="粗体 (Ctrl+B)" aria-label="粗体">
-              <span class="format-bold-letter" aria-hidden="true">B</span>
-            </button>
-            <button type="button" class="format-btn" data-md-action="italic" title="斜体 (Ctrl+I)" aria-label="斜体">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 4h8"/><path d="M6 20h8"/><path d="M14 4l-4 16"/></svg>
-            </button>
-            <button type="button" class="format-btn" data-md-action="underline" title="下划线" aria-label="下划线">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4v7a5 5 0 0 0 10 0V4"/><path d="M5 21h14"/></svg>
-            </button>
-            <button type="button" class="format-btn" data-md-action="orderedList" title="有序列表" aria-label="有序列表">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 6h9"/><path d="M10 12h9"/><path d="M10 18h9"/><path d="M4 6h1v4"/><path d="M4 10h2"/><path d="M4 14h2l-2 4h2"/></svg>
-            </button>
-            <button type="button" class="format-btn" data-md-action="unorderedList" title="无序列表" aria-label="无序列表">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h11"/><path d="M9 12h11"/><path d="M9 18h11"/><path d="M4 6h.01"/><path d="M4 12h.01"/><path d="M4 18h.01"/></svg>
-            </button>
-            <button type="button" class="format-btn" data-md-action="code" title="行内代码" aria-label="行内代码">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 8l-4 4 4 4"/><path d="M14 8l4 4-4 4"/></svg>
-            </button>
-            <button type="button" class="format-btn" data-md-action="link" title="链接 (Ctrl+K)" aria-label="链接">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.1 0l2-2a5 5 0 0 0-7.1-7.1l-1.2 1.2"/><path d="M14 11a5 5 0 0 0-7.1 0l-2 2A5 5 0 0 0 12 20l1.2-1.2"/></svg>
-            </button>
-            <button type="button" class="format-btn" data-md-action="quote" title="引用" aria-label="引用">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 11H6a4 4 0 0 0 4 4v2a6 6 0 0 1-6-6V7h6z"/><path d="M20 11h-4a4 4 0 0 0 4 4v2a6 6 0 0 1-6-6V7h6z"/></svg>
-            </button>
-            <button type="button" class="format-btn" data-md-action="codeBlock" title="代码块" aria-label="代码块">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M10 13l-2 2 2 2"/><path d="M14 13l2 2-2 2"/></svg>
-            </button>
-            <button type="button" class="format-btn" data-md-action="image" title="插入图片语法" aria-label="插入图片语法">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M8.5 11a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z"/><path d="M21 16l-5-5L5 19"/></svg>
-            </button>
-            <button type="button" class="format-btn" data-md-action="imageUpload" title="导入本地图片" aria-label="导入本地图片">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M8.5 11a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z"/><path d="M21 16l-5-5L5 19"/><path d="M12 17V9"/><path d="M9 12l3-3 3 3"/></svg>
-            </button>
-            <button type="button" class="format-btn" data-md-action="table" title="插入表格" aria-label="插入表格">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18"/><path d="M3 16h18"/><path d="M9 4v16"/><path d="M15 4v16"/></svg>
-            </button>
-          </div>
-          <textarea id="markdown" placeholder="在这里粘贴 Markdown 文本..."></textarea>
-        </div>
-
-        <!-- Preview Panel -->
-        <div class="editor-panel">
-          <div class="panel-header">
-            <div class="panel-dot red"></div>
-            <div class="panel-dot yellow"></div>
-            <div class="panel-dot green"></div>
-            <span class="panel-title">公众号预览</span>
-          </div>
-          <div class="panel-toolbar">
-            <label class="toolbar-label">模板</label>
-            <select id="themeSelect" class="toolbar-select">
-              <option value="claude">暖陶米白</option>
-              <option value="minimal">极简留白</option>
-              <option value="night">暗夜深色</option>
-              <option value="simple">简洁蓝</option>
-              <option value="elegant">优雅棕</option>
-              <option value="vivid">活力红</option>
-              <option value="amber">琥珀橙</option>
-              <option value="green">清新绿</option>
-              <option value="health">健康绿</option>
-              <option value="magazine">杂志红</option>
-              <option value="retro">复古纸</option>
-              <option value="ocean">海盐青</option>
-              <option value="tech">科技蓝</option>
-              <option value="newspaper">报刊体</option>
-              <option value="warmred">暖阳红</option>
-            </select>
-            <label class="toolbar-label">字号</label>
-            <div class="font-size-ctrl">
-              <button id="fontSizeDown" class="font-size-btn" title="缩小字号">−</button>
-              <span id="fontSizeLabel" class="font-size-label">0</span>
-              <button id="fontSizeUp" class="font-size-btn" title="放大字号">+</button>
+        <!-- Navbar -->
+        <nav id="navbar" class="navbar" aria-label="主导航">
+            <div class="nav-inner">
+                <a href="/" class="logo" aria-label="MarkNice 首页">
+                    <div class="logo-icon" aria-hidden="true">
+                        <img
+                            src="./src/marknice-icon.svg"
+                            alt=""
+                            width="36"
+                            height="36"
+                        />
+                    </div>
+                    <span class="logo-text">MarkNice</span>
+                    <span class="logo-tagline"
+                        >一键转换 Markdown/Word/PDF 为公众号排版或另存为
+                        Word/PDF 文档</span
+                    >
+                </a>
+                <div class="nav-actions">
+                    <a
+                        href="#features"
+                        class="nav-btn"
+                        aria-label="特性介绍"
+                        style="
+                            text-decoration: none;
+                            font-size: 13px;
+                            font-weight: 500;
+                            width: auto;
+                            padding: 0 12px;
+                        "
+                    >
+                        <svg
+                            aria-hidden="true"
+                            viewBox="0 0 24 24"
+                            width="16"
+                            height="16"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                        >
+                            <polygon
+                                points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"
+                            />
+                        </svg>
+                        &ensp;特性
+                    </a>
+                    <a
+                        href="./guide.html"
+                        class="nav-btn"
+                        aria-label="使用指导"
+                        style="
+                            text-decoration: none;
+                            font-size: 13px;
+                            font-weight: 500;
+                            width: auto;
+                            padding: 0 12px;
+                        "
+                    >
+                        <svg
+                            aria-hidden="true"
+                            viewBox="0 0 24 24"
+                            width="16"
+                            height="16"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                        >
+                            <circle cx="12" cy="12" r="10" />
+                            <line x1="12" y1="16" x2="12" y2="12" />
+                            <line x1="12" y1="8" x2="12.01" y2="8" />
+                        </svg>
+                        &ensp;指导
+                    </a>
+                    <button
+                        id="modeToggleBtn"
+                        class="nav-btn"
+                        aria-label="切换深色/浅色模式"
+                    >
+                        <svg
+                            id="sunIcon"
+                            aria-hidden="true"
+                            viewBox="0 0 24 24"
+                            width="18"
+                            height="18"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                        >
+                            <circle cx="12" cy="12" r="5" />
+                            <line x1="12" y1="1" x2="12" y2="3" />
+                            <line x1="12" y1="21" x2="12" y2="23" />
+                            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+                            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+                            <line x1="1" y1="12" x2="3" y2="12" />
+                            <line x1="21" y1="12" x2="23" y2="12" />
+                            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+                            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+                        </svg>
+                        <svg
+                            id="moonIcon"
+                            viewBox="0 0 24 24"
+                            width="18"
+                            height="18"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            style="display: none"
+                        >
+                            <path
+                                d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"
+                            />
+                        </svg>
+                    </button>
+                </div>
             </div>
-            <label class="toolbar-label">段距</label>
-            <div class="font-size-ctrl">
-              <button id="paraSpacingDown" class="font-size-btn" title="减小段距">−</button>
-              <span id="paraSpacingLabel" class="font-size-label">0</span>
-              <button id="paraSpacingUp" class="font-size-btn" title="增大段距">+</button>
+        </nav>
+
+        <!-- Editor (primary, top of page) -->
+        <section id="editor" class="editor-section" style="padding-top: 72px">
+            <div class="container">
+                <div class="editor-grid">
+                    <!-- Input Panel -->
+                    <div class="editor-panel">
+                        <div class="panel-header">
+                            <div class="panel-dot red"></div>
+                            <div class="panel-dot yellow"></div>
+                            <div class="panel-dot green"></div>
+                            <span class="panel-title">Markdown 输入</span>
+                        </div>
+                        <div class="panel-toolbar">
+                            <label class="file-upload-btn">
+                                <svg
+                                    viewBox="0 0 24 24"
+                                    width="14"
+                                    height="14"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="2"
+                                >
+                                    <path
+                                        d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"
+                                    />
+                                    <polyline points="17 8 12 3 7 8" />
+                                    <line x1="12" y1="3" x2="12" y2="15" />
+                                </svg>
+                                <span class="btn-label">导入 MD</span>
+                                <input
+                                    type="file"
+                                    id="fileInput"
+                                    accept=".md,.markdown,.txt,text/markdown,text/plain"
+                                    hidden
+                                />
+                            </label>
+                            <label
+                                class="file-upload-btn"
+                                title="导入 Word 文档（.docx）"
+                            >
+                                <svg
+                                    viewBox="0 0 24 24"
+                                    width="14"
+                                    height="14"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="2"
+                                >
+                                    <path
+                                        d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
+                                    />
+                                    <polyline points="14 2 14 8 20 8" />
+                                    <line x1="16" y1="13" x2="8" y2="13" />
+                                    <line x1="16" y1="17" x2="8" y2="17" />
+                                </svg>
+                                <span class="btn-label">导入 Word</span>
+                                <input
+                                    type="file"
+                                    id="wordFileInput"
+                                    accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                                    hidden
+                                />
+                            </label>
+                            <label
+                                class="file-upload-btn"
+                                title="导入 Markdown 中引用的本地图片（可多选）"
+                            >
+                                <svg
+                                    viewBox="0 0 24 24"
+                                    width="14"
+                                    height="14"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="2"
+                                >
+                                    <rect
+                                        x="3"
+                                        y="5"
+                                        width="18"
+                                        height="14"
+                                        rx="2"
+                                        ry="2"
+                                    />
+                                    <circle cx="8.5" cy="10.5" r="1.5" />
+                                    <path d="M21 16l-5-5L5 19" />
+                                </svg>
+                                <span class="btn-label">导入图片</span>
+                                <input
+                                    type="file"
+                                    id="imageFileInput"
+                                    accept="image/*,.avif,.bmp,.svg,.webp"
+                                    multiple
+                                    hidden
+                                />
+                            </label>
+                            <button id="sampleBtn" class="toolbar-btn">
+                                <span class="btn-label">示例</span>
+                            </button>
+                            <button id="clearBtn" class="toolbar-btn">
+                                <span class="btn-label">清空</span>
+                            </button>
+                            <span
+                                id="status"
+                                class="status-text"
+                                aria-live="polite"
+                                aria-atomic="true"
+                            ></span>
+                        </div>
+                        <div
+                            class="markdown-format-toolbar"
+                            role="toolbar"
+                            aria-label="Markdown 编辑工具"
+                        >
+                            <button
+                                type="button"
+                                class="format-btn heading-btn"
+                                data-md-action="heading1"
+                                title="一级标题"
+                                aria-label="一级标题"
+                            >
+                                H1
+                            </button>
+                            <button
+                                type="button"
+                                class="format-btn heading-btn"
+                                data-md-action="heading2"
+                                title="二级标题"
+                                aria-label="二级标题"
+                            >
+                                H2
+                            </button>
+                            <button
+                                type="button"
+                                class="format-btn heading-btn"
+                                data-md-action="heading3"
+                                title="三级标题"
+                                aria-label="三级标题"
+                            >
+                                H3
+                            </button>
+                            <button
+                                type="button"
+                                class="format-btn"
+                                data-md-action="bold"
+                                title="粗体 (Ctrl+B)"
+                                aria-label="粗体"
+                            >
+                                <span
+                                    class="format-bold-letter"
+                                    aria-hidden="true"
+                                    >B</span
+                                >
+                            </button>
+                            <button
+                                type="button"
+                                class="format-btn"
+                                data-md-action="italic"
+                                title="斜体 (Ctrl+I)"
+                                aria-label="斜体"
+                            >
+                                <svg viewBox="0 0 24 24" aria-hidden="true">
+                                    <path d="M10 4h8" />
+                                    <path d="M6 20h8" />
+                                    <path d="M14 4l-4 16" />
+                                </svg>
+                            </button>
+                            <button
+                                type="button"
+                                class="format-btn"
+                                data-md-action="underline"
+                                title="下划线"
+                                aria-label="下划线"
+                            >
+                                <svg viewBox="0 0 24 24" aria-hidden="true">
+                                    <path d="M7 4v7a5 5 0 0 0 10 0V4" />
+                                    <path d="M5 21h14" />
+                                </svg>
+                            </button>
+                            <button
+                                type="button"
+                                class="format-btn"
+                                data-md-action="orderedList"
+                                title="有序列表"
+                                aria-label="有序列表"
+                            >
+                                <svg viewBox="0 0 24 24" aria-hidden="true">
+                                    <path d="M10 6h9" />
+                                    <path d="M10 12h9" />
+                                    <path d="M10 18h9" />
+                                    <path d="M4 6h1v4" />
+                                    <path d="M4 10h2" />
+                                    <path d="M4 14h2l-2 4h2" />
+                                </svg>
+                            </button>
+                            <button
+                                type="button"
+                                class="format-btn"
+                                data-md-action="unorderedList"
+                                title="无序列表"
+                                aria-label="无序列表"
+                            >
+                                <svg viewBox="0 0 24 24" aria-hidden="true">
+                                    <path d="M9 6h11" />
+                                    <path d="M9 12h11" />
+                                    <path d="M9 18h11" />
+                                    <path d="M4 6h.01" />
+                                    <path d="M4 12h.01" />
+                                    <path d="M4 18h.01" />
+                                </svg>
+                            </button>
+                            <button
+                                type="button"
+                                class="format-btn"
+                                data-md-action="code"
+                                title="行内代码"
+                                aria-label="行内代码"
+                            >
+                                <svg viewBox="0 0 24 24" aria-hidden="true">
+                                    <path d="M10 8l-4 4 4 4" />
+                                    <path d="M14 8l4 4-4 4" />
+                                </svg>
+                            </button>
+                            <button
+                                type="button"
+                                class="format-btn"
+                                data-md-action="link"
+                                title="链接 (Ctrl+K)"
+                                aria-label="链接"
+                            >
+                                <svg viewBox="0 0 24 24" aria-hidden="true">
+                                    <path
+                                        d="M10 13a5 5 0 0 0 7.1 0l2-2a5 5 0 0 0-7.1-7.1l-1.2 1.2"
+                                    />
+                                    <path
+                                        d="M14 11a5 5 0 0 0-7.1 0l-2 2A5 5 0 0 0 12 20l1.2-1.2"
+                                    />
+                                </svg>
+                            </button>
+                            <button
+                                type="button"
+                                class="format-btn"
+                                data-md-action="quote"
+                                title="引用"
+                                aria-label="引用"
+                            >
+                                <svg viewBox="0 0 24 24" aria-hidden="true">
+                                    <path
+                                        d="M10 11H6a4 4 0 0 0 4 4v2a6 6 0 0 1-6-6V7h6z"
+                                    />
+                                    <path
+                                        d="M20 11h-4a4 4 0 0 0 4 4v2a6 6 0 0 1-6-6V7h6z"
+                                    />
+                                </svg>
+                            </button>
+                            <button
+                                type="button"
+                                class="format-btn"
+                                data-md-action="codeBlock"
+                                title="代码块"
+                                aria-label="代码块"
+                            >
+                                <svg viewBox="0 0 24 24" aria-hidden="true">
+                                    <path
+                                        d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"
+                                    />
+                                    <path d="M14 3v5h5" />
+                                    <path d="M10 13l-2 2 2 2" />
+                                    <path d="M14 13l2 2-2 2" />
+                                </svg>
+                            </button>
+                            <button
+                                type="button"
+                                class="format-btn"
+                                data-md-action="image"
+                                title="插入图片语法"
+                                aria-label="插入图片语法"
+                            >
+                                <svg viewBox="0 0 24 24" aria-hidden="true">
+                                    <rect
+                                        x="3"
+                                        y="5"
+                                        width="18"
+                                        height="14"
+                                        rx="2"
+                                    />
+                                    <path
+                                        d="M8.5 11a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z"
+                                    />
+                                    <path d="M21 16l-5-5L5 19" />
+                                </svg>
+                            </button>
+                            <button
+                                type="button"
+                                class="format-btn"
+                                data-md-action="imageUpload"
+                                title="导入本地图片"
+                                aria-label="导入本地图片"
+                            >
+                                <svg viewBox="0 0 24 24" aria-hidden="true">
+                                    <rect
+                                        x="3"
+                                        y="5"
+                                        width="18"
+                                        height="14"
+                                        rx="2"
+                                    />
+                                    <path
+                                        d="M8.5 11a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z"
+                                    />
+                                    <path d="M21 16l-5-5L5 19" />
+                                    <path d="M12 17V9" />
+                                    <path d="M9 12l3-3 3 3" />
+                                </svg>
+                            </button>
+                            <button
+                                type="button"
+                                class="format-btn"
+                                data-md-action="table"
+                                title="插入表格"
+                                aria-label="插入表格"
+                            >
+                                <svg viewBox="0 0 24 24" aria-hidden="true">
+                                    <rect
+                                        x="3"
+                                        y="4"
+                                        width="18"
+                                        height="16"
+                                        rx="2"
+                                    />
+                                    <path d="M3 10h18" />
+                                    <path d="M3 16h18" />
+                                    <path d="M9 4v16" />
+                                    <path d="M15 4v16" />
+                                </svg>
+                            </button>
+                        </div>
+                        <textarea
+                            id="markdown"
+                            placeholder="在这里粘贴 Markdown 文本..."
+                        ></textarea>
+                    </div>
+
+                    <!-- Preview Panel -->
+                    <div class="editor-panel">
+                        <div class="panel-header">
+                            <div class="panel-dot red"></div>
+                            <div class="panel-dot yellow"></div>
+                            <div class="panel-dot green"></div>
+                            <span class="panel-title">公众号预览</span>
+                        </div>
+                        <div class="panel-toolbar">
+                            <label class="toolbar-label">模板</label>
+                            <select id="themeSelect" class="toolbar-select">
+                                <option value="claude">暖陶米白</option>
+                                <option value="minimal">极简留白</option>
+                                <option value="night">暗夜深色</option>
+                                <option value="simple">简洁蓝</option>
+                                <option value="elegant">优雅棕</option>
+                                <option value="vivid">活力红</option>
+                                <option value="amber">琥珀橙</option>
+                                <option value="green">清新绿</option>
+                                <option value="health">健康绿</option>
+                                <option value="magazine">杂志红</option>
+                                <option value="retro">复古纸</option>
+                                <option value="ocean">海盐青</option>
+                                <option value="tech">科技蓝</option>
+                                <option value="newspaper">报刊体</option>
+                                <option value="warmred">暖阳红</option>
+                            </select>
+                            <label class="toolbar-label">字号</label>
+                            <div class="font-size-ctrl">
+                                <button
+                                    id="fontSizeDown"
+                                    class="font-size-btn"
+                                    title="缩小字号"
+                                >
+                                    −
+                                </button>
+                                <span id="fontSizeLabel" class="font-size-label"
+                                    >0</span
+                                >
+                                <button
+                                    id="fontSizeUp"
+                                    class="font-size-btn"
+                                    title="放大字号"
+                                >
+                                    +
+                                </button>
+                            </div>
+                            <label class="toolbar-label">段距</label>
+                            <div class="font-size-ctrl">
+                                <button
+                                    id="paraSpacingDown"
+                                    class="font-size-btn"
+                                    title="减小段距"
+                                >
+                                    −
+                                </button>
+                                <span
+                                    id="paraSpacingLabel"
+                                    class="font-size-label"
+                                    >0</span
+                                >
+                                <button
+                                    id="paraSpacingUp"
+                                    class="font-size-btn"
+                                    title="增大段距"
+                                >
+                                    +
+                                </button>
+                            </div>
+                            <div class="preview-mode-toggle">
+                                <button
+                                    id="desktopModeBtn"
+                                    class="mode-btn active"
+                                    title="桌面预览"
+                                >
+                                    <svg
+                                        viewBox="0 0 24 24"
+                                        width="14"
+                                        height="14"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        stroke-width="2"
+                                    >
+                                        <rect
+                                            x="2"
+                                            y="3"
+                                            width="20"
+                                            height="14"
+                                            rx="2"
+                                            ry="2"
+                                        />
+                                        <line x1="8" y1="21" x2="16" y2="21" />
+                                        <line x1="12" y1="17" x2="12" y2="21" />
+                                    </svg>
+                                </button>
+                                <button
+                                    id="phoneModeBtn"
+                                    class="mode-btn"
+                                    title="手机预览"
+                                >
+                                    <svg
+                                        viewBox="0 0 24 24"
+                                        width="14"
+                                        height="14"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        stroke-width="2"
+                                    >
+                                        <rect
+                                            x="5"
+                                            y="2"
+                                            width="14"
+                                            height="20"
+                                            rx="2"
+                                            ry="2"
+                                        />
+                                        <line
+                                            x1="12"
+                                            y1="18"
+                                            x2="12.01"
+                                            y2="18"
+                                        />
+                                    </svg>
+                                </button>
+                            </div>
+                            <button id="copyBtn" class="copy-btn">
+                                <svg
+                                    viewBox="0 0 24 24"
+                                    width="14"
+                                    height="14"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="2"
+                                >
+                                    <path
+                                        d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"
+                                    />
+                                    <rect
+                                        x="8"
+                                        y="2"
+                                        width="8"
+                                        height="4"
+                                        rx="1"
+                                        ry="1"
+                                    />
+                                </svg>
+                                复制到公众号
+                            </button>
+                            <button
+                                id="copyMdBtn"
+                                class="toolbar-btn"
+                                title="复制 Markdown 源码"
+                            >
+                                <svg
+                                    viewBox="0 0 24 24"
+                                    width="14"
+                                    height="14"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="2"
+                                >
+                                    <path
+                                        d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"
+                                    />
+                                    <rect
+                                        x="8"
+                                        y="2"
+                                        width="8"
+                                        height="4"
+                                        rx="1"
+                                        ry="1"
+                                    />
+                                </svg>
+                                复制 MD
+                            </button>
+                            <button
+                                id="saveHtmlBtn"
+                                class="toolbar-btn"
+                                title="另存为 HTML 文件"
+                            >
+                                <svg
+                                    viewBox="0 0 24 24"
+                                    width="14"
+                                    height="14"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="2"
+                                >
+                                    <path
+                                        d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"
+                                    />
+                                    <polyline points="7 10 12 15 17 10" />
+                                    <line x1="12" y1="15" x2="12" y2="3" />
+                                </svg>
+                                存为 HTML
+                            </button>
+                            <button
+                                id="savePdfBtn"
+                                class="toolbar-btn"
+                                title="通过打印对话框保存为 PDF"
+                            >
+                                <svg
+                                    viewBox="0 0 24 24"
+                                    width="14"
+                                    height="14"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="2"
+                                >
+                                    <path
+                                        d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
+                                    />
+                                    <polyline points="14 2 14 8 20 8" />
+                                    <line x1="9" y1="15" x2="15" y2="15" />
+                                </svg>
+                                存为 PDF
+                            </button>
+                            <button
+                                id="saveWordBtn"
+                                class="toolbar-btn"
+                                title="保存为 Word 文档（.docx）"
+                            >
+                                <svg
+                                    viewBox="0 0 24 24"
+                                    width="14"
+                                    height="14"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="2"
+                                >
+                                    <path
+                                        d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
+                                    />
+                                    <polyline points="14 2 14 8 20 8" />
+                                    <line x1="16" y1="13" x2="8" y2="13" />
+                                    <line x1="16" y1="17" x2="8" y2="17" />
+                                </svg>
+                                存为 Word
+                            </button>
+                        </div>
+                        <div id="previewContainer" class="preview-container">
+                            <div id="preview" class="preview-area"></div>
+                        </div>
+                        <div class="help-text">
+                            提示：若公众号编辑器内容较长，建议分段粘贴，稳定性更好。<a
+                                href="./guide.html"
+                                style="
+                                    color: var(--accent);
+                                    margin-left: 8px;
+                                    text-decoration: none;
+                                "
+                                >查看使用指导 →</a
+                            >
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div class="preview-mode-toggle">
-              <button id="desktopModeBtn" class="mode-btn active" title="桌面预览">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-              </button>
-              <button id="phoneModeBtn" class="mode-btn" title="手机预览">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
-              </button>
+        </section>
+
+        <!-- Intro / SEO -->
+        <section class="hero-section">
+            <div class="grid-pattern"></div>
+            <div class="hero-glow"></div>
+            <div class="hero-inner">
+                <div class="hero-badge">
+                    Markdown / Word / PDF → 微信公众号 | 导出PDF/Word
+                </div>
+                <h1 class="hero-title">
+                    一键转换 Markdown/Word/PDF 为
+                    <span class="gradient-text">公众号</span>
+                    排版格式 | 另存 <span class="gradient-text">Word/PDF</span>
+                </h1>
+                <p class="hero-desc">
+                    粘贴 Markdown 或导入 Word / PDF
+                    文档，自动识别标题编号、合并单元格、数学公式。15
+                    种主题风格任选，字号段距自由调节，一键复制富文本到公众号草稿箱，也可另存为
+                    HTML 或 PDF 及 Word。
+                </p>
+                <div
+                    style="
+                        display: flex;
+                        gap: 12px;
+                        flex-wrap: wrap;
+                        justify-content: center;
+                        margin-top: 8px;
+                    "
+                >
+                    <a href="#editor" class="hero-cta">
+                        立即开始排版
+                        <svg
+                            viewBox="0 0 24 24"
+                            width="18"
+                            height="18"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                        >
+                            <line x1="5" y1="12" x2="19" y2="12" />
+                            <polyline points="12 5 19 12 12 19" />
+                        </svg>
+                    </a>
+                    <a
+                        href="./guide.html"
+                        class="hero-cta"
+                        style="
+                            background: transparent;
+                            color: var(--text);
+                            border-color: var(--border);
+                        "
+                    >
+                        使用指导
+                    </a>
+                </div>
             </div>
-            <button id="copyBtn" class="copy-btn">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>
-              复制到公众号
-            </button>
-            <button id="copyMdBtn" class="toolbar-btn" title="复制 Markdown 源码">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>
-              复制 MD
-            </button>
-            <button id="saveHtmlBtn" class="toolbar-btn" title="另存为 HTML 文件">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-              存为 HTML
-            </button>
-            <button id="savePdfBtn" class="toolbar-btn" title="通过打印对话框保存为 PDF">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
-              存为 PDF
-            </button>
-            <button id="saveWordBtn" class="toolbar-btn" title="保存为 Word 文档（.docx）">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-              存为 Word
-            </button>
-          </div>
-          <div id="previewContainer" class="preview-container">
-            <div id="preview" class="preview-area"></div>
-          </div>
-          <div class="help-text">提示：若公众号编辑器内容较长，建议分段粘贴，稳定性更好。<a href="./guide.html" style="color:var(--accent);margin-left:8px;text-decoration:none;">查看使用指导 →</a></div>
-        </div>
-      </div>
-    </div>
-  </section>
+        </section>
 
-  <!-- Intro / SEO -->
-  <section class="hero-section">
-    <div class="grid-pattern"></div>
-    <div class="hero-glow"></div>
-    <div class="hero-inner">
-      <div class="hero-badge">Markdown / Word → 微信公众号 | 导出PDF/Word</div>
-      <h1 class="hero-title">
-        一键转换 Markdown/Word 为
-        <span class="gradient-text">微信公众号</span>
-        排版格式 | 另存 <span class="gradient-text">Word/PDF</span>
-      </h1>
-      <p class="hero-desc">
-        粘贴 Markdown 或导入 Word / PDF 文档，自动识别标题编号、合并单元格、数学公式。15 种主题风格任选，字号段距自由调节，一键复制富文本到公众号草稿箱，也可另存为 HTML 或 PDF 及 Word。
-      </p>
-      <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-top:8px;">
-        <a href="#editor" class="hero-cta">
-          立即开始排版
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-        </a>
-        <a href="./guide.html" class="hero-cta" style="background:transparent;color:var(--text);border-color:var(--border);">
-          使用指导
-        </a>
-      </div>
-    </div>
-  </section>
+        <!-- Features Section -->
+        <section id="features" class="features-section">
+            <div class="container">
+                <div class="features-grid">
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <svg
+                                viewBox="0 0 24 24"
+                                width="24"
+                                height="24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2"
+                            >
+                                <polygon
+                                    points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"
+                                />
+                            </svg>
+                        </div>
+                        <h3>即时转换</h3>
+                        <p>实时预览，所见即所得，Markdown 输入即转换</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <svg
+                                viewBox="0 0 24 24"
+                                width="24"
+                                height="24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2"
+                            >
+                                <path
+                                    d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
+                                />
+                                <polyline points="14 2 14 8 20 8" />
+                            </svg>
+                        </div>
+                        <h3>Word / PDF 导入</h3>
+                        <p>
+                            导入 .docx / .pdf
+                            文档，自动识别标题编号、表格合并、数学公式
+                        </p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <svg
+                                viewBox="0 0 24 24"
+                                width="24"
+                                height="24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2"
+                            >
+                                <rect
+                                    x="3"
+                                    y="3"
+                                    width="18"
+                                    height="18"
+                                    rx="2"
+                                    ry="2"
+                                />
+                                <line x1="3" y1="9" x2="21" y2="9" />
+                                <line x1="9" y1="21" x2="9" y2="9" />
+                            </svg>
+                        </div>
+                        <h3>15 种主题</h3>
+                        <p>
+                            简洁蓝、暖陶米白（仿 Claude
+                            风格）、优雅棕、健康绿、海盐青、活力红、暗夜深色等风格
+                        </p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <svg
+                                viewBox="0 0 24 24"
+                                width="24"
+                                height="24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2"
+                            >
+                                <path
+                                    d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"
+                                />
+                                <rect
+                                    x="8"
+                                    y="2"
+                                    width="8"
+                                    height="4"
+                                    rx="1"
+                                    ry="1"
+                                />
+                            </svg>
+                        </div>
+                        <h3>一键复制 / 导出</h3>
+                        <p>
+                            富文本复制到公众号编辑器，或导出为 HTML / PDF / Word
+                            文件
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
 
-  <!-- Features Section -->
-  <section id="features" class="features-section">
-    <div class="container">
-      <div class="features-grid">
-        <div class="feature-card">
-          <div class="feature-icon">
-            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-          </div>
-          <h3>即时转换</h3>
-          <p>实时预览，所见即所得，Markdown 输入即转换</p>
-        </div>
-        <div class="feature-card">
-          <div class="feature-icon">
-            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-          </div>
-          <h3>Word / PDF 导入</h3>
-          <p>导入 .docx / .pdf 文档，自动识别标题编号、表格合并、数学公式</p>
-        </div>
-        <div class="feature-card">
-          <div class="feature-icon">
-            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
-          </div>
-          <h3>15 种主题</h3>
-          <p>简洁蓝、暖陶米白（仿 Claude 风格）、优雅棕、健康绿、海盐青、活力红、暗夜深色等风格</p>
-        </div>
-        <div class="feature-card">
-          <div class="feature-icon">
-            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>
-          </div>
-          <h3>一键复制 / 导出</h3>
-          <p>富文本复制到公众号编辑器，或导出为 HTML / PDF / Word 文件</p>
-        </div>
-      </div>
-    </div>
-  </section>
+        <!-- Footer -->
+        <footer class="footer">
+            <div class="container">
+                <div class="footer-inner">
+                    <div class="footer-logo">
+                        <div class="logo-icon" aria-hidden="true">
+                            <img
+                                src="./src/marknice-icon.svg"
+                                alt=""
+                                width="30"
+                                height="30"
+                            />
+                        </div>
+                        <span class="logo-text">MarkNice</span>
+                    </div>
+                    <p class="footer-copy">
+                        开源工具 MarkNice · Markdown/Word 转微信公众号格式 |
+                        导出PDF/Word
+                    </p>
+                    <p class="footer-copy" style="margin-top: 8px">
+                        <a
+                            href="https://beian.miit.gov.cn/"
+                            target="_blank"
+                            rel="noopener"
+                            style="color: inherit; text-decoration: none"
+                            >粤ICP备17084064号-5</a
+                        >
+                    </p>
+                </div>
+            </div>
+        </footer>
 
-  <!-- Footer -->
-  <footer class="footer">
-    <div class="container">
-      <div class="footer-inner">
-        <div class="footer-logo">
-          <div class="logo-icon" aria-hidden="true">
-            <img src="./src/marknice-icon.svg" alt="" width="30" height="30" />
-          </div>
-          <span class="logo-text">MarkNice</span>
-        </div>
-        <p class="footer-copy">开源工具 MarkNice · Markdown/Word 转微信公众号格式 | 导出PDF/Word</p>
-        <p class="footer-copy" style="margin-top:8px;"><a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener" style="color:inherit;text-decoration:none;">粤ICP备17084064号-5</a></p>
-      </div>
-    </div>
-  </footer>
-
-  <!-- Editor logic (also handles navbar scroll + dark/light mode toggle) -->
-  <script defer src="./src/main.js"></script>
-  <script defer src="./src/pro-extras.js"></script>
-</body>
+        <!-- Editor logic (also handles navbar scroll + dark/light mode toggle) -->
+        <script defer src="./src/main.js"></script>
+        <script defer src="./src/pro-extras.js"></script>
+    </body>
 </html>
