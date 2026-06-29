@@ -1,6 +1,6 @@
 # MarkNice
 
-Markdown / Word 转微信公众号排版格式的 Web 应用。
+Markdown / Word 转微信公众号排版格式的 Web 应用。 Web 在线版本：https://marknice.cn。 
 
 ## 功能
 
@@ -90,7 +90,7 @@ sudo rsync -av --delete /path/to/marknice/ /var/www/marknice/
 - 📧 邮箱: willmove#163.com (# 替换为 @)
 - 💬 GitHub: [https://github.com/willmove/]
 - 📱 微信: [willmove]
-
+- 在线应用： https://marknice.cn
 
 **关注公众号**，分享更多 AI 产品实践技巧：
 
