@@ -1,6 +1,7 @@
 # MarkNice
 
-Markdown / Word 转微信公众号排版格式的 Web 应用。 Web 在线版本：https://marknice.cn。 
+Markdown / Word 转微信公众号排版格式的 Web 应用。
+Web 在线版本：https://marknice.cn 
 
 ## 功能
 
