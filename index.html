@@ -45,17 +45,6 @@
         <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
         <!-- Styles -->
         <link rel="stylesheet" href="./src/styles.css" />
-        <link
-            rel="stylesheet"
-            href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css"
-            media="print"
-            onload="this.media = 'all'"
-        />
-        <noscript
-            ><link
-                rel="stylesheet"
-                href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css"
-        /></noscript>
         <!-- Editor dependencies (CDN) -->
         <script
             defer
@@ -65,9 +54,10 @@
             defer
             src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"
         ></script>
+        <script defer src="./src/math-runtime.js"></script>
         <script
             defer
-            src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"
+            src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg-full.js"
         ></script>
         <script
             defer

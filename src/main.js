@@ -49,6 +49,25 @@ const modeToggleBtn = document.getElementById('modeToggleBtn');
 
 marked.setOptions({ breaks: true, gfm: true });
 
+function escapeMathHtml(value) {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function mathNodeTex(node, displayMode) {
+  const fromAttribute = node.getAttribute && node.getAttribute('data-tex');
+  if (fromAttribute) return fromAttribute;
+  const text = node.textContent || '';
+  return (displayMode
+    ? text.replace(/^\\\[/, '').replace(/\\\]$/, '')
+    : text.replace(/^\\\(/, '').replace(/\\\)$/, '')
+  ).trim();
+}
+
 // Math extension for marked: handle $$...$$ (block) and $...$ (inline)
 marked.use({
   extensions: [
@@ -61,7 +80,8 @@ marked.use({
         if (match) return { type: 'mathBlock', raw: match[0], tex: match[1].trim() };
       },
       renderer: function(token) {
-        return '<div class="math-block">\\[' + token.tex + '\\]</div>';
+        const tex = escapeMathHtml(token.tex);
+        return '<div class="math-block" data-tex="' + tex + '">\\[' + tex + '\\]</div>';
       }
     },
     {
@@ -73,7 +93,8 @@ marked.use({
         if (match) return { type: 'mathInline', raw: match[0], tex: match[1].trim() };
       },
       renderer: function(token) {
-        return '<span class="math-inline">\\(' + token.tex + '\\)</span>';
+        const tex = escapeMathHtml(token.tex);
+        return '<span class="math-inline" data-tex="' + tex + '">\\(' + tex + '\\)</span>';
       }
     }
   ]
@@ -620,15 +641,9 @@ function sanitizeForWechat(html) {
 }
 
 function renderMath(container) {
-  if (typeof katex === 'undefined') return;
-  container.querySelectorAll('.math-block').forEach(function(el) {
-    var tex = el.textContent.replace(/^\\\[/, '').replace(/\\\]$/, '').trim();
-    try { el.innerHTML = katex.renderToString(tex, { displayMode: true, throwOnError: false }); } catch(e) {}
-  });
-  container.querySelectorAll('.math-inline').forEach(function(el) {
-    var tex = el.textContent.replace(/^\\\(/, '').replace(/\\\)$/, '').trim();
-    try { el.innerHTML = katex.renderToString(tex, { displayMode: false, throwOnError: false }); } catch(e) {}
-  });
+  if (window.MarkNiceMath && typeof MarkNiceMath.renderInto === 'function') {
+    MarkNiceMath.renderInto(container);
+  }
 }
 
 function render() {
@@ -757,7 +772,7 @@ document.getElementById('paraSpacingUp').addEventListener('click', () => {
 });
 markdownEl.addEventListener('input', () => {
   clearTimeout(window.__renderTimer);
-  window.__renderTimer = setTimeout(render, 250);
+  window.__renderTimer = setTimeout(render, 180);
 });
 
 const markdownFormatToolbar = document.querySelector('.markdown-format-toolbar');
@@ -1327,14 +1342,14 @@ function htmlToMarkdown(html) {
       case 'table': return processTable(node);
       case 'span': {
         if (node.classList && node.classList.contains('math-inline')) {
-          var tex = node.textContent.replace(/^\\\(/, '').replace(/\\\)$/, '').trim();
+          var tex = mathNodeTex(node, false);
           return tex ? ('$' + tex + '$') : children;
         }
         return children;
       }
       case 'div': {
         if (node.classList && node.classList.contains('math-block')) {
-          var tex = node.textContent.replace(/^\\\[/, '').replace(/\\\]$/, '').trim();
+          var tex = mathNodeTex(node, true);
           return tex ? ('$$' + tex + '$$\n\n') : children;
         }
         return children;
@@ -1447,8 +1462,6 @@ document.getElementById('savePdfBtn').addEventListener('click', () => {
   doc.open();
   doc.write('<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8">' +
     '<title>' + titleEscaper.innerHTML + '</title>' +
-    '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">' +
-    '<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"><\/script>' +
     '<style>' +
     'body{margin:0;padding:30px 40px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;font-size:15px;line-height:1.8;color:#333}' +
     'h1{font-size:24px;margin:20px 0 10px}h2{font-size:20px;margin:18px 0 8px}h3{font-size:17px;margin:14px 0 6px}' +
@@ -1461,56 +1474,18 @@ document.getElementById('savePdfBtn').addEventListener('click', () => {
   doc.close();
   doc.title = exportTitle;
 
-  iframe.contentWindow.onafterprint = () => {
-    document.body.removeChild(iframe);
+  const win = iframe.contentWindow;
+  win.onafterprint = () => {
+    if (iframe.parentNode) document.body.removeChild(iframe);
   };
 
-  // Wait for KaTeX library to load, then render math and print
-  const checkKatexAndRender = () => {
-    const win = iframe.contentWindow;
-    if (typeof win.katex !== 'undefined') {
-      try {
-        // Render math formulas
-        const container = win.document.body;
-        container.querySelectorAll('.math-block').forEach(function(el) {
-          const tex = el.textContent.replace(/^\\\[/, '').replace(/\\\]$/, '').trim();
-          try {
-            el.innerHTML = win.katex.renderToString(tex, { displayMode: true, throwOnError: false });
-          } catch(e) {
-            console.error('KaTeX block render error:', e);
-          }
-        });
-        container.querySelectorAll('.math-inline').forEach(function(el) {
-          const tex = el.textContent.replace(/^\\\(/, '').replace(/\\\)$/, '').trim();
-          try {
-            el.innerHTML = win.katex.renderToString(tex, { displayMode: false, throwOnError: false });
-          } catch(e) {
-            console.error('KaTeX inline render error:', e);
-          }
-        });
-
-        // Wait a bit more for rendering to complete, then print
-        setTimeout(() => {
-          win.print();
-          statusEl.textContent = '请在打印对话框中选择"另存为 PDF"';
-          // Fallback cleanup if onafterprint doesn't fire
-          setTimeout(() => {
-            if (iframe.parentNode) document.body.removeChild(iframe);
-          }, 60000);
-        }, 300);
-      } catch (err) {
-        console.error('Error rendering math:', err);
-        statusEl.textContent = '准备 PDF 时出错：' + err.message;
-        if (iframe.parentNode) document.body.removeChild(iframe);
-      }
-    } else {
-      // KaTeX not loaded yet, wait and retry
-      setTimeout(checkKatexAndRender, 100);
-    }
-  };
-
-  // Start checking after initial delay to allow scripts to load
-  setTimeout(checkKatexAndRender, 500);
+  setTimeout(() => {
+    win.print();
+    statusEl.textContent = '请在打印对话框中选择"另存为 PDF"';
+    setTimeout(() => {
+      if (iframe.parentNode) document.body.removeChild(iframe);
+    }, 60000);
+  }, 300);
 });
 
 // ===== Word export helpers =====
@@ -1953,7 +1928,10 @@ document.getElementById('saveWordBtn').addEventListener('click', async () => {
     const titleEscaper = document.createElement('div');
     titleEscaper.textContent = exportTitle;
     const exportBaseName = getExportBaseName();
-    const wordBodyHtml = await prepareHtmlForWordExport(html);
+    const mathHtml = (window.MarkNiceMath && typeof MarkNiceMath.rewriteForWordExport === 'function')
+      ? MarkNiceMath.rewriteForWordExport(html)
+      : html;
+    const wordBodyHtml = await prepareHtmlForWordExport(mathHtml);
 
     // Prepare HTML content with proper structure for Word
     const wordHtml = `

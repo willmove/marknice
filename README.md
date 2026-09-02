@@ -8,7 +8,7 @@ Web 在线版本：https://marknice.cn
 - 粘贴或上传 Markdown（`.md / .markdown / .txt`），实时预览转换结果
 - 导入 Word 文档（`.docx`），自动识别标题编号、有序/无序列表、合并单元格表格、OMML 数学公式、图片、文本格式
 - 导入 PDF 文档（经本地 Node 代理调用 PaddleOCR，需后端运行）
-- 数学公式通过 KaTeX 渲染为 HTML
+- 数学公式通过 MathJax 渲染为自包含 SVG，复制到公众号草稿时不会出现符号重复
 - 15 种公众号排版主题：暖陶米白（仿 Claude 风格）、极简留白、暗夜深色、简洁蓝、优雅棕、活力红、琥珀橙、清新绿、健康绿、杂志红、复古纸、海盐青、科技蓝、报刊体、暖阳红
 - 字号与段距自由调节
 - 一键复制富文本（`text/html` + `text/plain`），直接粘贴到公众号编辑器
@@ -27,6 +27,7 @@ marknice/
 ├── guide.html            # 使用指导
 ├── src/
 │   ├── main.js           # 业务逻辑（转换、模板、复制、Word 导入、HTML/PDF/Word 导出）
+│   ├── math-runtime.js   # MathJax SVG 公式渲染与 Word 线性文本降级
 │   ├── pro-extras.js     # 扩展模块（PDF 导入，需后端）
 │   ├── docx-parser.js    # 自定义 DOCX 解析器（编号、合并单元格、公式、图片）
 │   └── styles.css        # 页面样式（含移动端响应式）
@@ -40,7 +41,7 @@ marknice/
 
 - [marked](https://github.com/markedjs/marked) — Markdown 解析
 - [JSZip](https://stuk.github.io/jszip/) — DOCX 文件解压
-- [KaTeX](https://katex.org/) — 数学公式渲染
+- [MathJax](https://www.mathjax.org/) — 数学公式渲染为自包含 SVG（粘贴公众号）
 - [html-docx-js](https://github.com/evidenceprime/html-docx-js) — HTML 转 Word 文档
 
 ## 本地运行

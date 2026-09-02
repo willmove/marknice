@@ -7,7 +7,7 @@ This file provides guidance to Codex (Codex.ai/code) when working with code in t
 MarkNice converts Markdown / Word documents into WeChat-Official-Account-ready
 rich-text layouts (微信公众号排版). It is a **dependency-free, build-step-free**
 vanilla-JS web app: plain `.html` + `.js` + `.css`, no bundler, no `package.json`,
-no transpilation. All third-party libraries (marked, JSZip, KaTeX, html-docx-js)
+no transpilation. All third-party libraries (marked, JSZip, MathJax, html-docx-js)
 load from CDN via `<script>` tags. Comments and UI strings are in Chinese.
 
 ## Running locally
@@ -58,7 +58,7 @@ does) rather than editing the render pipeline directly.
 
 ### Render pipeline (`src/main.js`)
 
-`render()` is the hub: markdown → `marked` parse → KaTeX math → inline-style
+`render()` is the hub: markdown → `marked` parse → MathJax SVG math → inline-style
 application → `sanitizeForWechat()`. Key concepts:
 
 - **Themes** live in the `themes` object. Each theme is a style map keyed by element;
@@ -67,7 +67,7 @@ application → `sanitizeForWechat()`. Key concepts:
 - `sanitizeForWechat()` converts the preview into paste-safe HTML. Font size and
   paragraph spacing are runtime offsets (`fontSizeOffset`, `paraSpacingOffset`)
   folded into the inline styles — handle these when touching style output.
-- A custom `marked` extension handles `$...$` / `$$...$$` math (rendered by KaTeX).
+- A custom `marked` extension handles `$...$` / `$$...$$` math (rendered by MathJax as self-contained SVG for WeChat paste).
 - Copy-to-clipboard writes both `text/html` and `text/plain` so it pastes cleanly
   into the WeChat editor.
 - Export paths: HTML file, PDF (browser print dialog), Word (`html-docx-js`).
